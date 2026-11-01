@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
+
 import { Aperture, Menu, X, Sun, Moon, Sparkles } from "lucide-react";
 
 const navLinks = [
@@ -12,9 +13,23 @@ const navLinks = [
   { name: "About Us", href: "/about" },
 ];
 
+// Hydration-safe mounted detection
+const subscribe = () => () => {};
+
+const getSnapshot = () => true;
+
+const getServerSnapshot = () => false;
+
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const { theme, setTheme } = useTheme();
+
+  const mounted = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -24,7 +39,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 sm:pt-4 lg:px-8">
       {/* Floating Navbar */}
       <nav className="mx-auto flex h-20 max-w-[1440px] items-center justify-between rounded-2xl border border-border/80 bg-background/90 px-4 shadow-lg shadow-black/5 backdrop-blur-xl transition-all duration-300 sm:px-6 lg:px-8">
-        {/* Animated StudioSpace Logo */}
+        {/* Animated Logo */}
         <Link
           href="/"
           onClick={() => setMobileMenuOpen(false)}
@@ -50,6 +65,7 @@ export default function Navbar() {
             <span className="text-foreground transition-colors duration-300 group-hover:text-accent">
               Studio
             </span>
+
             <span className="text-accent transition-colors duration-300 group-hover:text-primary">
               Space
             </span>
@@ -57,7 +73,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden items-center gap-6 xl:gap-8 lg:flex">
+        <div className="hidden items-center gap-6 lg:flex xl:gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -75,9 +91,15 @@ export default function Navbar() {
             type="button"
             onClick={toggleTheme}
             aria-label="Toggle theme"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-all duration-300 hover:border-accent hover:bg-secondary hover:rotate-12"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-all duration-300 hover:rotate-12 hover:border-accent hover:bg-secondary"
           >
-            {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            {!mounted ? (
+              <span className="h-[19px] w-[19px]" aria-hidden="true" />
+            ) : theme === "dark" ? (
+              <Sun size={19} />
+            ) : (
+              <Moon size={19} />
+            )}
           </button>
 
           <Link
@@ -103,7 +125,13 @@ export default function Navbar() {
             aria-label="Toggle theme"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors hover:bg-secondary"
           >
-            {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+            {!mounted ? (
+              <span className="h-[19px] w-[19px]" aria-hidden="true" />
+            ) : theme === "dark" ? (
+              <Sun size={19} />
+            ) : (
+              <Moon size={19} />
+            )}
           </button>
 
           <button
