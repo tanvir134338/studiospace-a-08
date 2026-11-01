@@ -32,8 +32,7 @@ const slides = [
     title: "Create Without Limits.",
     description:
       "Discover inspiring photography studios, production spaces and creative environments designed to bring your ideas to life.",
-    image:
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=2000&q=85",
+    image: "/images/hero/hero-01.jpg",
     label: "Spaces for every vision",
   },
   {
@@ -42,8 +41,7 @@ const slides = [
     title: "Where Creativity Comes Alive.",
     description:
       "Find beautiful photography and film studios equipped with everything you need to create extraordinary work.",
-    image:
-      "https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?auto=format&fit=crop&w=2000&q=85",
+    image: "/images/hero/hero-02.jpg",
     label: "Professional production spaces",
   },
   {
@@ -52,8 +50,7 @@ const slides = [
     title: "A Space to Make It Happen.",
     description:
       "From podcast sessions to music production, explore unique spaces that inspire your next creative project.",
-    image:
-      "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=2000&q=85",
+    image: "/images/hero/hero-03.jpg",
     label: "Built for creators",
   },
 ];
