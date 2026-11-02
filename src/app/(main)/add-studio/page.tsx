@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+
 import {
   ArrowLeft,
   Upload,
@@ -15,8 +17,10 @@ import {
   Image as ImageIcon,
   Loader2,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const categories = [
   { value: "photography", label: "Photography Studio" },
@@ -43,7 +47,7 @@ const availableAmenities = [
 export default function AddStudioPage() {
   const router = useRouter();
 
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session } = authClient.useSession();
   const user = session?.user;
 
   const [name, setName] = useState("");
@@ -58,6 +62,15 @@ export default function AddStudioPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Clean up temporary image preview URL
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   // Handle image selection
   const handleImageChange = (file: File | undefined) => {
@@ -174,391 +187,367 @@ export default function AddStudioPage() {
     }
   };
 
-  if (isPending) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="animate-spin text-primary" size={32} />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-        <Building2 size={48} className="mb-4 text-primary" />
-
-        <h1 className="text-2xl font-bold text-foreground">Login Required</h1>
-
-        <p className="mt-2 text-sm text-muted">
-          Please login to add your studio.
-        </p>
-
-        <Link
-          href="/login"
-          className="mt-6 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground"
-        >
-          Login Now
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-      <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-primary"
-        >
-          <ArrowLeft size={17} />
-          Back to Home
-        </Link>
+    <ProtectedRoute>
+      <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          {/* Header */}
+          <Link
+            href="/"
+            className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-primary"
+          >
+            <ArrowLeft size={17} />
+            Back to Home
+          </Link>
 
-        <div className="mb-10">
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-            Host Your Space
-          </span>
+          <div className="mb-10">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+              Host Your Space
+            </span>
 
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-            Add Your Studio
-          </h1>
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+              Add Your Studio
+            </h1>
 
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
-            Share your creative space with the community and start receiving
-            bookings.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Owner Information */}
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                <Users size={21} />
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold text-foreground">
-                  Host Information
-                </h2>
-                <p className="text-xs text-muted">Your account information</p>
-              </div>
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Your Name
-                </label>
-
-                <input
-                  value={user.name || ""}
-                  readOnly
-                  className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Email Address
-                </label>
-
-                <input
-                  value={user.email || ""}
-                  readOnly
-                  className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted outline-none"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Basic Information */}
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                <Building2 size={21} />
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold text-foreground">
-                  Studio Information
-                </h2>
-                <p className="text-xs text-muted">
-                  Tell us about your creative space
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Studio Name *
-                </label>
-
-                <input
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your studio name"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Category *
-                </label>
-
-                <select
-                  required
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
-                >
-                  <option value="">Select a category</option>
-
-                  {categories.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Studio Description *
-                </label>
-
-                <textarea
-                  required
-                  rows={5}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your studio, facilities and what makes it special..."
-                  className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <MapPin size={16} className="text-primary" />
-                  Studio Location *
-                </label>
-
-                <input
-                  required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Enter full studio address"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Pricing and Capacity */}
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                <DollarSign size={21} />
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold text-foreground">
-                  Pricing & Capacity
-                </h2>
-                <p className="text-xs text-muted">
-                  Set your studio pricing and capacity
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Hourly Rate ($) *
-                </label>
-
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  value={pricePerHour}
-                  onChange={(e) => setPricePerHour(e.target.value)}
-                  placeholder="e.g. 50"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold">
-                  Security Deposit ($) *
-                </label>
-
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={securityDeposit}
-                  onChange={(e) => setSecurityDeposit(e.target.value)}
-                  placeholder="e.g. 100"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <Users size={16} className="text-primary" />
-                  Maximum Capacity *
-                </label>
-
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  value={capacity}
-                  onChange={(e) => setCapacity(e.target.value)}
-                  placeholder="Maximum number of people"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Amenities */}
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <div className="mb-5">
-              <h2 className="text-lg font-bold text-foreground">
-                Studio Amenities *
-              </h2>
-
-              <p className="mt-1 text-xs text-muted">
-                Select the facilities available in your studio.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {availableAmenities.map((amenity) => {
-                const selected = amenities.includes(amenity);
-
-                return (
-                  <label
-                    key={amenity}
-                    className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs font-medium transition sm:text-sm ${
-                      selected
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-foreground hover:border-primary/50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleAmenity(amenity)}
-                      className="h-4 w-4 accent-primary"
-                    />
-
-                    {amenity}
-                  </label>
-                );
-              })}
-            </div>
-
-            <p className="mt-4 text-xs text-muted">
-              {amenities.length} amenities selected
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-muted sm:text-base">
+              Share your creative space with the community and start receiving
+              bookings.
             </p>
-          </section>
+          </div>
 
-          {/* Studio Image */}
-          <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                <ImageIcon size={21} />
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Owner Information */}
+            <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+              <div className="mb-6 flex items-center gap-3">
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <Users size={21} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Host Information
+                  </h2>
+                  <p className="text-xs text-muted">Your account information</p>
+                </div>
               </div>
 
-              <div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Your Name
+                  </label>
+
+                  <input
+                    value={user?.name || ""}
+                    readOnly
+                    className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Email Address
+                  </label>
+
+                  <input
+                    value={user?.email || ""}
+                    readOnly
+                    className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted outline-none"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Basic Information */}
+            <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+              <div className="mb-6 flex items-center gap-3">
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <Building2 size={21} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Studio Information
+                  </h2>
+                  <p className="text-xs text-muted">
+                    Tell us about your creative space
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Studio Name *
+                  </label>
+
+                  <input
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your studio name"
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Category *
+                  </label>
+
+                  <select
+                    required
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+                  >
+                    <option value="">Select a category</option>
+
+                    {categories.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Studio Description *
+                  </label>
+
+                  <textarea
+                    required
+                    rows={5}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe your studio, facilities and what makes it special..."
+                    className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                    <MapPin size={16} className="text-primary" />
+                    Studio Location *
+                  </label>
+
+                  <input
+                    required
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Enter full studio address"
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Pricing and Capacity */}
+            <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+              <div className="mb-6 flex items-center gap-3">
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <DollarSign size={21} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Pricing & Capacity
+                  </h2>
+                  <p className="text-xs text-muted">
+                    Set your studio pricing and capacity
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Hourly Rate ($) *
+                  </label>
+
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={pricePerHour}
+                    onChange={(e) => setPricePerHour(e.target.value)}
+                    placeholder="e.g. 50"
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">
+                    Security Deposit ($) *
+                  </label>
+
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={securityDeposit}
+                    onChange={(e) => setSecurityDeposit(e.target.value)}
+                    placeholder="e.g. 100"
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                    <Users size={16} className="text-primary" />
+                    Maximum Capacity *
+                  </label>
+
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    value={capacity}
+                    onChange={(e) => setCapacity(e.target.value)}
+                    placeholder="Maximum number of people"
+                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Amenities */}
+            <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+              <div className="mb-5">
                 <h2 className="text-lg font-bold text-foreground">
-                  Studio Image *
+                  Studio Amenities *
                 </h2>
-                <p className="text-xs text-muted">
-                  Upload a high-quality image of your studio
+
+                <p className="mt-1 text-xs text-muted">
+                  Select the facilities available in your studio.
                 </p>
               </div>
-            </div>
 
-            {imagePreview ? (
-              <div className="relative overflow-hidden rounded-xl border border-border">
-                <img
-                  src={imagePreview}
-                  alt="Studio preview"
-                  className="h-64 w-full object-cover sm:h-80"
-                />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {availableAmenities.map((amenity) => {
+                  const selected = amenities.includes(amenity);
 
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500"
-                  aria-label="Remove image"
-                >
-                  <X size={19} />
-                </button>
+                  return (
+                    <label
+                      key={amenity}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs font-medium transition sm:text-sm ${
+                        selected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleAmenity(amenity)}
+                        className="h-4 w-4 accent-primary"
+                      />
+
+                      {amenity}
+                    </label>
+                  );
+                })}
               </div>
-            ) : (
-              <label className="flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background px-4 text-center transition hover:border-primary hover:bg-primary/5">
-                <Upload size={34} className="mb-4 text-primary" />
 
-                <span className="text-sm font-bold text-foreground">
-                  Click to upload studio image
-                </span>
+              <p className="mt-4 text-xs text-muted">
+                {amenities.length} amenities selected
+              </p>
+            </section>
 
-                <span className="mt-2 text-xs text-muted">
-                  JPG, PNG or WEBP · Maximum 5MB
-                </span>
+            {/* Studio Image */}
+            <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <ImageIcon size={21} />
+                </div>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleImageChange(e.target.files?.[0])}
-                />
-              </label>
-            )}
-          </section>
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Studio Image *
+                  </h2>
+                  <p className="text-xs text-muted">
+                    Upload a high-quality image of your studio
+                  </p>
+                </div>
+              </div>
 
-          {/* Submit */}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              disabled={loading}
-              className="rounded-xl border border-border px-7 py-3.5 text-sm font-semibold transition hover:bg-secondary disabled:opacity-50"
-            >
-              Cancel
-            </button>
+              {imagePreview ? (
+                <div className="relative overflow-hidden rounded-xl border border-border">
+                  <Image
+                    src={imagePreview}
+                    alt="Studio preview"
+                    width={1200}
+                    height={800}
+                    unoptimized
+                    className="h-64 w-full object-cover sm:h-80"
+                  />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold text-primary-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Uploading & Creating...
-                </>
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500"
+                    aria-label="Remove image"
+                  >
+                    <X size={19} />
+                  </button>
+                </div>
               ) : (
-                <>
-                  <Plus size={18} />
-                  Publish Studio
-                </>
+                <label className="flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background px-4 text-center transition hover:border-primary hover:bg-primary/5">
+                  <Upload size={34} className="mb-4 text-primary" />
+
+                  <span className="text-sm font-bold text-foreground">
+                    Click to upload studio image
+                  </span>
+
+                  <span className="mt-2 text-xs text-muted">
+                    JPG, PNG or WEBP · Maximum 5MB
+                  </span>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleImageChange(e.target.files?.[0])}
+                  />
+                </label>
               )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </main>
+            </section>
+
+            {/* Submit */}
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                disabled={loading}
+                className="rounded-xl border border-border px-7 py-3.5 text-sm font-semibold transition hover:bg-secondary disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold text-primary-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Uploading & Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={18} />
+                    Publish Studio
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </ProtectedRoute>
   );
 }
