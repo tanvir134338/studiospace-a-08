@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import type { FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -16,6 +17,8 @@ import {
   Loader2,
   RefreshCw,
   CalendarDays,
+  X,
+  Clock,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -53,9 +56,21 @@ const categoryLabels: Record<string, string> = {
   events: "Events & Workshops",
 };
 
+// Get today's date in local YYYY-MM-DD format
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 // Main details component
 function StudioDetailsContent() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
+
   const studioId = params.id;
 
   const [studio, setStudio] = useState<Studio | null>(null);
@@ -63,6 +78,13 @@ function StudioDetailsContent() {
   const [error, setError] = useState("");
   const [imageError, setImageError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+
+  // Booking states
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [bookingDate, setBookingDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("11:00");
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   // Fetch studio details
   useEffect(() => {
@@ -118,9 +140,101 @@ function StudioDetailsContent() {
     setRetryKey((previous) => previous + 1);
   };
 
-  // Booking button
+  // Open booking modal
   const handleBooking = () => {
-    toast.info("Booking functionality is coming soon!");
+    setBookingDate("");
+    setStartTime("09:00");
+    setEndTime("11:00");
+    setIsBookingOpen(true);
+  };
+
+  // Calculate booking duration
+  const calculateDuration = () => {
+    if (!startTime || !endTime || startTime >= endTime) {
+      return 0;
+    }
+
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
+
+    const start = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+
+    return (end - start) / 60;
+  };
+
+  const duration = calculateDuration();
+
+  const rentalPrice = studio ? duration * studio.pricePerHour : 0;
+
+  const securityDeposit = studio ? studio.securityDeposit : 0;
+
+  const totalAmount = rentalPrice + securityDeposit;
+
+  // Submit booking
+  const handleBookingSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!studio) return;
+
+    if (!bookingDate) {
+      toast.error("Please select a booking date.");
+      return;
+    }
+
+    if (bookingDate < getTodayDate()) {
+      toast.error("Past dates cannot be selected.");
+      return;
+    }
+
+    if (duration <= 0) {
+      toast.error("End time must be after start time.");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/bookings", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studioId: studio._id,
+          date: bookingDate,
+          startTime,
+          endTime,
+          totalPrice: rentalPrice,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.status === 401) {
+        toast.error("Please login before booking a studio.");
+        setIsBookingOpen(false);
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to create booking.");
+      }
+
+      toast.success("Booking request submitted successfully!");
+
+      setIsBookingOpen(false);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   // Loading state
@@ -372,7 +486,7 @@ function StudioDetailsContent() {
               </button>
 
               <p className="mt-4 text-center text-xs leading-6 text-muted">
-                Booking functionality will be available soon.
+                Select your preferred date and time to request a booking.
               </p>
 
               <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted">
@@ -383,6 +497,198 @@ function StudioDetailsContent() {
           </aside>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {isBookingOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !bookingLoading) {
+              setIsBookingOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-modal-title"
+            className="my-auto w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-7"
+          >
+            {/* Modal Header */}
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="booking-modal-title"
+                  className="text-2xl font-bold text-foreground"
+                >
+                  Book This Studio
+                </h2>
+
+                <p className="mt-1 text-sm text-muted">
+                  Select your preferred booking schedule.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBookingOpen(false)}
+                disabled={bookingLoading}
+                className="rounded-lg p-2 text-muted transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                aria-label="Close booking modal"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Studio Information */}
+            <div className="mb-6 rounded-xl bg-secondary/60 p-4">
+              <p className="font-semibold text-foreground">{studio.name}</p>
+
+              <p className="mt-1 text-sm text-muted">{studio.location}</p>
+
+              <p className="mt-2 text-sm font-semibold text-primary">
+                ${studio.pricePerHour} / hour
+              </p>
+            </div>
+
+            <form onSubmit={handleBookingSubmit} className="space-y-5">
+              {/* Booking Date */}
+              <div>
+                <label
+                  htmlFor="bookingDate"
+                  className="mb-2 block text-sm font-semibold text-foreground"
+                >
+                  Booking Date
+                </label>
+
+                <input
+                  id="bookingDate"
+                  type="date"
+                  required
+                  min={getTodayDate()}
+                  value={bookingDate}
+                  onChange={(event) => setBookingDate(event.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary"
+                />
+              </div>
+
+              {/* Time Selection */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="startTime"
+                    className="mb-2 block text-sm font-semibold text-foreground"
+                  >
+                    Start Time
+                  </label>
+
+                  <input
+                    id="startTime"
+                    type="time"
+                    required
+                    value={startTime}
+                    onChange={(event) => setStartTime(event.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="endTime"
+                    className="mb-2 block text-sm font-semibold text-foreground"
+                  >
+                    End Time
+                  </label>
+
+                  <input
+                    id="endTime"
+                    type="time"
+                    required
+                    value={endTime}
+                    onChange={(event) => setEndTime(event.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Booking Summary */}
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-muted">
+                    <Clock size={16} />
+                    Duration
+                  </span>
+
+                  <span className="font-semibold text-foreground">
+                    {duration > 0 ? `${duration} hours` : "Invalid time"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Hourly Rate</span>
+
+                  <span className="font-semibold text-foreground">
+                    ${studio.pricePerHour}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Rental Price</span>
+
+                  <span className="font-semibold text-foreground">
+                    ${rentalPrice.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Security Deposit</span>
+
+                  <span className="font-semibold text-foreground">
+                    ${securityDeposit.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="border-t border-border pt-3">
+                  <div className="flex justify-between gap-3">
+                    <span className="font-bold text-foreground">
+                      Total Amount
+                    </span>
+
+                    <span className="text-xl font-extrabold text-primary">
+                      ${totalAmount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={
+                  bookingLoading ||
+                  duration <= 0 ||
+                  !bookingDate ||
+                  bookingDate < getTodayDate()
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {bookingLoading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Booking"
+                )}
+              </button>
+
+              <p className="text-center text-xs leading-5 text-muted">
+                Your booking request will be submitted with Pending status.
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
