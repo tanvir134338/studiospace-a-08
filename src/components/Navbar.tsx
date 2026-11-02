@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-
+import { useRouter } from "next/navigation";
 import { Aperture, Menu, X, Sun, Moon, Sparkles } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -13,17 +14,18 @@ const navLinks = [
   { name: "About Us", href: "/about" },
 ];
 
-// Hydration-safe mounted detection
 const subscribe = () => () => {};
-
 const getSnapshot = () => true;
-
 const getServerSnapshot = () => false;
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
+
+  // Check logged-in user session
+  const { data: session, isPending } = authClient.useSession();
 
   const mounted = useSyncExternalStore(
     subscribe,
@@ -35,11 +37,23 @@ export default function Navbar() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut();
+      setMobileMenuOpen(false);
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const user = session?.user;
+
   return (
     <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 sm:pt-4 lg:px-8">
-      {/* Floating Navbar */}
       <nav className="mx-auto flex h-20 max-w-[1440px] items-center justify-between rounded-2xl border border-border/80 bg-background/90 px-4 shadow-lg shadow-black/5 backdrop-blur-xl transition-all duration-300 sm:px-6 lg:px-8">
-        {/* Animated Logo */}
+        {/* Logo */}
         <Link
           href="/"
           onClick={() => setMobileMenuOpen(false)}
@@ -60,12 +74,10 @@ export default function Navbar() {
             />
           </div>
 
-          {/* Dual Tone Brand Name */}
           <span className="text-xl font-extrabold tracking-tight">
             <span className="text-foreground transition-colors duration-300 group-hover:text-accent">
               Studio
             </span>
-
             <span className="text-accent transition-colors duration-300 group-hover:text-primary">
               Space
             </span>
@@ -102,19 +114,38 @@ export default function Navbar() {
             )}
           </button>
 
-          <Link
-            href="/login"
-            className="rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-secondary hover:text-accent"
-          >
-            Login
-          </Link>
+          {!isPending &&
+            (user ? (
+              <>
+                <span className="max-w-[140px] truncate text-sm font-semibold">
+                  {user.name}
+                </span>
 
-          <Link
-            href="/register"
-            className="whitespace-nowrap rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:bg-accent hover:shadow-md"
-          >
-            Get Started
-          </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-semibold transition-colors hover:border-accent hover:bg-secondary"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-secondary hover:text-accent"
+                >
+                  Login
+                </Link>
+
+                <Link
+                  href="/register"
+                  className="whitespace-nowrap rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:bg-accent hover:shadow-md"
+                >
+                  Get Started
+                </Link>
+              </>
+            ))}
         </div>
 
         {/* Mobile Actions */}
@@ -146,7 +177,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Floating Mobile Navigation */}
+      {/* Mobile Navigation */}
       {mobileMenuOpen && (
         <div className="mx-auto mt-2 max-w-[1440px] rounded-2xl border border-border bg-background/95 px-4 py-5 shadow-lg backdrop-blur-xl lg:hidden">
           <div className="flex flex-col gap-1">
@@ -161,23 +192,43 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-4">
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg border border-border px-4 py-3 text-center text-sm font-semibold transition-colors hover:bg-secondary"
-              >
-                Login
-              </Link>
+            {!isPending && (
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-4">
+                {user ? (
+                  <>
+                    <span className="col-span-2 px-3 py-2 text-center text-sm font-semibold">
+                      {user.name}
+                    </span>
 
-              <Link
-                href="/register"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg bg-primary px-4 py-3 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-accent"
-              >
-                Register
-              </Link>
-            </div>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="col-span-2 rounded-lg border border-border px-4 py-3 text-sm font-semibold transition-colors hover:bg-secondary"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="rounded-lg border border-border px-4 py-3 text-center text-sm font-semibold transition-colors hover:bg-secondary"
+                    >
+                      Login
+                    </Link>
+
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="rounded-lg bg-primary px-4 py-3 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-accent"
+                    >
+                      Register
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
