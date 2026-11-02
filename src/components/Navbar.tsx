@@ -1,10 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { Aperture, Menu, X, Sun, Moon, Sparkles } from "lucide-react";
+import {
+  Aperture,
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 const navLinks = [
@@ -24,7 +33,6 @@ export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
 
-  // Check logged-in user session
   const { data: session, isPending } = authClient.useSession();
 
   const mounted = useSyncExternalStore(
@@ -33,10 +41,14 @@ export default function Navbar() {
     getServerSnapshot,
   );
 
+  const user = session?.user;
+
+  // Theme Toggle
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  // Logout
   const handleLogout = async () => {
     try {
       await authClient.signOut();
@@ -48,7 +60,33 @@ export default function Navbar() {
     }
   };
 
-  const user = session?.user;
+  // Render User Avatar
+  const renderUserAvatar = (size: "normal" | "small" = "normal") => {
+    const dimension = size === "small" ? "h-9 w-9" : "h-10 w-10";
+    const imageSize = size === "small" ? 36 : 40;
+
+    return (
+      <div
+        className={`flex ${dimension} shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-primary text-sm font-bold text-primary-foreground`}
+      >
+        {user?.image ? (
+          <Image
+            src={user.image}
+            alt={`${user.name}'s profile`}
+            width={imageSize}
+            height={imageSize}
+            unoptimized
+            referrerPolicy="no-referrer"
+            className="h-full w-full object-cover"
+          />
+        ) : user?.name ? (
+          user.name.charAt(0).toUpperCase()
+        ) : (
+          <UserRound size={19} />
+        )}
+      </div>
+    );
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 sm:pt-4 lg:px-8">
@@ -117,9 +155,13 @@ export default function Navbar() {
           {!isPending &&
             (user ? (
               <>
-                <span className="max-w-[140px] truncate text-sm font-semibold">
-                  {user.name}
-                </span>
+                <div className="flex max-w-[180px] items-center gap-2">
+                  {renderUserAvatar()}
+
+                  <span className="truncate text-sm font-semibold">
+                    {user.name}
+                  </span>
+                </div>
 
                 <button
                   type="button"
@@ -196,9 +238,13 @@ export default function Navbar() {
               <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-4">
                 {user ? (
                   <>
-                    <span className="col-span-2 px-3 py-2 text-center text-sm font-semibold">
-                      {user.name}
-                    </span>
+                    <div className="col-span-2 flex items-center justify-center gap-3 px-3 py-2">
+                      {renderUserAvatar("small")}
+
+                      <span className="max-w-[180px] truncate text-sm font-semibold">
+                        {user.name}
+                      </span>
+                    </div>
 
                     <button
                       type="button"

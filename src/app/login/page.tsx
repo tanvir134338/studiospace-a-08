@@ -62,6 +62,8 @@ export default function LoginPage() {
       const result = await authClient.signIn.social({
         provider: "google",
         callbackURL: "http://localhost:3000/",
+        errorCallbackURL:
+          "http://localhost:3000/register?reason=google-signup-required",
       });
 
       if (result.error) {
