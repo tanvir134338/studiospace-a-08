@@ -19,6 +19,8 @@ import {
   CalendarDays,
   X,
   Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -35,6 +37,7 @@ interface Studio {
   capacity: number;
   amenities: string[];
   image: string;
+  images?: string[];
   ownerId: string;
   createdAt?: string;
   updatedAt?: string;
@@ -79,12 +82,23 @@ function StudioDetailsContent() {
   const [imageError, setImageError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
+  // Gallery state
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
   // Booking states
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("11:00");
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Gallery images with old studio fallback
+  const galleryImages =
+    studio?.images && studio.images.length > 0
+      ? studio.images
+      : studio?.image
+        ? [studio.image]
+        : [];
 
   // Fetch studio details
   useEffect(() => {
@@ -114,6 +128,7 @@ function StudioDetailsContent() {
         if (!cancelled) {
           setStudio(result.studio);
           setImageError(false);
+          setActiveImageIndex(0);
         }
       } catch (err) {
         if (!cancelled) {
@@ -236,7 +251,6 @@ function StudioDetailsContent() {
       setBookingLoading(false);
     }
   };
-
   // Loading state
   if (loading) {
     return (
@@ -301,27 +315,108 @@ function StudioDetailsContent() {
         <div className="grid items-start gap-8 lg:grid-cols-[1fr_360px] xl:gap-12">
           {/* Left Section */}
           <div className="min-w-0">
-            {/* Studio Image */}
-            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:aspect-[16/9]">
-              {studio.image && !imageError ? (
-                <Image
-                  src={studio.image}
-                  alt={studio.name}
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 65vw"
-                  className="object-cover"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-muted">
-                  <Building2 size={60} />
+            {/* Studio Gallery Carousel */}
+            <div className="space-y-4">
+              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:aspect-[16/9]">
+                {galleryImages.length > 0 && !imageError ? (
+                  <>
+                    <Image
+                      key={galleryImages[activeImageIndex]}
+                      src={galleryImages[activeImageIndex]}
+                      alt={`${studio.name} - Image ${activeImageIndex + 1}`}
+                      fill
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 65vw"
+                      className="object-cover"
+                      onError={() => setImageError(true)}
+                    />
+
+                    {/* Category Badge */}
+                    <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/65 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+                      {categoryLabels[studio.category] || studio.category}
+                    </div>
+
+                    {/* Carousel Controls */}
+                    {galleryImages.length > 1 && (
+                      <>
+                        {/* Previous Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveImageIndex((previous) =>
+                              previous === 0
+                                ? galleryImages.length - 1
+                                : previous - 1,
+                            );
+                            setImageError(false);
+                          }}
+                          aria-label="Previous image"
+                          className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80"
+                        >
+                          <ChevronLeft size={22} />
+                        </button>
+
+                        {/* Next Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveImageIndex((previous) =>
+                              previous === galleryImages.length - 1
+                                ? 0
+                                : previous + 1,
+                            );
+                            setImageError(false);
+                          }}
+                          aria-label="Next image"
+                          className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80"
+                        >
+                          <ChevronRight size={22} />
+                        </button>
+
+                        {/* Image Counter */}
+                        <div className="absolute bottom-4 right-4 rounded-full bg-black/65 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                          {activeImageIndex + 1} / {galleryImages.length}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-muted">
+                    <Building2 size={60} />
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnail Gallery */}
+              {galleryImages.length > 1 && (
+                <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+                  {galleryImages.map((image, index) => (
+                    <button
+                      key={`${image}-${index}`}
+                      type="button"
+                      onClick={() => {
+                        setActiveImageIndex(index);
+                        setImageError(false);
+                      }}
+                      aria-label={`View image ${index + 1}`}
+                      aria-pressed={activeImageIndex === index}
+                      className={`relative aspect-[4/3] overflow-hidden rounded-xl border-2 transition ${
+                        activeImageIndex === index
+                          ? "border-primary opacity-100"
+                          : "border-border opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <Image
+                        src={image}
+                        alt={`${studio.name} thumbnail ${index + 1}`}
+                        fill
+                        sizes="(max-width: 640px) 25vw, 15vw"
+                        className="object-cover"
+                      />
+                    </button>
+                  ))}
                 </div>
               )}
-
-              <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/65 px-4 py-2 text-xs font-semibold text-white backdrop-blur-sm">
-                {categoryLabels[studio.category] || studio.category}
-              </div>
             </div>
 
             {/* Studio Heading */}
@@ -497,7 +592,6 @@ function StudioDetailsContent() {
           </aside>
         </div>
       </div>
-
       {/* Booking Modal */}
       {isBookingOpen && (
         <div

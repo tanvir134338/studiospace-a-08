@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -59,41 +59,78 @@ export default function AddStudioPage() {
   const [capacity, setCapacity] = useState("");
   const [amenities, setAmenities] = useState<string[]>([]);
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const previewUrlsRef = useRef<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Clean up temporary image preview URL
+  // Clean up temporary preview URLs
   useEffect(() => {
     return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-      }
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [imagePreview]);
+  }, []);
 
-  // Handle image selection
-  const handleImageChange = (file: File | undefined) => {
-    if (!file) return;
+  // Handle multiple image selection (maximum 5)
+  const handleImageChange = (files: FileList | null) => {
+    if (!files) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image.");
+    const selectedFiles = Array.from(files);
+    const validFiles: File[] = [];
+
+    for (const file of selectedFiles) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name}: Please select a valid image.`);
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name}: Image size must be less than 5MB.`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    const remainingSlots = 5 - imageFiles.length;
+
+    if (remainingSlots <= 0) {
+      toast.error("You can upload a maximum of 5 images.");
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB.");
-      return;
+    const filesToAdd = validFiles.slice(0, remainingSlots);
+
+    if (validFiles.length > remainingSlots) {
+      toast.error(`Only ${remainingSlots} more image(s) can be added.`);
     }
 
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    if (filesToAdd.length === 0) return;
+
+    const newPreviews = filesToAdd.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrlsRef.current.push(previewUrl);
+      return previewUrl;
+    });
+
+    setImageFiles((previous) => [...previous, ...filesToAdd]);
+    setImagePreviews((previous) => [...previous, ...newPreviews]);
   };
 
-  // Remove selected image
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview("");
+  // Remove one selected image
+  const removeImage = (index: number) => {
+    const previewUrl = imagePreviews[index];
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+
+      previewUrlsRef.current = previewUrlsRef.current.filter(
+        (url) => url !== previewUrl,
+      );
+    }
+
+    setImageFiles((previous) => previous.filter((_, i) => i !== index));
+    setImagePreviews((previous) => previous.filter((_, i) => i !== index));
   };
 
   // Handle amenities selection
@@ -115,8 +152,8 @@ export default function AddStudioPage() {
       return;
     }
 
-    if (!imageFile) {
-      toast.error("Please upload a studio image.");
+    if (imageFiles.length === 0) {
+      toast.error("Please upload at least one studio image.");
       return;
     }
 
@@ -128,20 +165,32 @@ export default function AddStudioPage() {
     try {
       setLoading(true);
 
-      // Step 1: Upload image to ImgBB
-      const formData = new FormData();
-      formData.append("image", imageFile);
+      // Step 1: Upload all selected images to ImgBB
+      const imageUrls: string[] = [];
 
-      const uploadResponse = await fetch("http://localhost:5000/api/upload", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      for (const imageFile of imageFiles) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
 
-      const uploadResult = await uploadResponse.json();
+        const uploadResponse = await fetch("http://localhost:5000/api/upload", {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
 
-      if (!uploadResponse.ok || !uploadResult.success) {
-        throw new Error(uploadResult.message || "Image upload failed.");
+        const uploadResult = await uploadResponse.json();
+
+        if (
+          !uploadResponse.ok ||
+          !uploadResult.success ||
+          !uploadResult.imageUrl
+        ) {
+          throw new Error(
+            uploadResult.message || `Failed to upload ${imageFile.name}.`,
+          );
+        }
+
+        imageUrls.push(uploadResult.imageUrl);
       }
 
       // Step 2: Create studio
@@ -154,7 +203,8 @@ export default function AddStudioPage() {
         securityDeposit: Number(securityDeposit),
         capacity: Number(capacity),
         amenities,
-        image: uploadResult.imageUrl,
+        image: imageUrls[0],
+        images: imageUrls,
       };
 
       const studioResponse = await fetch("http://localhost:5000/api/studios", {
@@ -457,7 +507,7 @@ export default function AddStudioPage() {
               </p>
             </section>
 
-            {/* Studio Image */}
+            {/* Studio Gallery Images */}
             <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-xl bg-primary/10 p-3 text-primary">
@@ -466,54 +516,84 @@ export default function AddStudioPage() {
 
                 <div>
                   <h2 className="text-lg font-bold text-foreground">
-                    Studio Image *
+                    Studio Gallery Images *
                   </h2>
+
                   <p className="text-xs text-muted">
-                    Upload a high-quality image of your studio
+                    Upload up to 5 images. The first image will be the cover
+                    image.
                   </p>
                 </div>
               </div>
 
-              {imagePreview ? (
-                <div className="relative overflow-hidden rounded-xl border border-border">
-                  <Image
-                    src={imagePreview}
-                    alt="Studio preview"
-                    width={1200}
-                    height={800}
-                    unoptimized
-                    className="h-64 w-full object-cover sm:h-80"
-                  />
+              {imagePreviews.length > 0 && (
+                <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div
+                      key={preview}
+                      className="relative overflow-hidden rounded-xl border border-border"
+                    >
+                      <Image
+                        src={preview}
+                        alt={`Studio preview ${index + 1}`}
+                        width={600}
+                        height={400}
+                        unoptimized
+                        className="h-36 w-full object-cover sm:h-44"
+                      />
 
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500"
-                    aria-label="Remove image"
-                  >
-                    <X size={19} />
-                  </button>
+                      {index === 0 && (
+                        <span className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-1 text-[10px] font-semibold text-white">
+                          Cover Image
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500"
+                        aria-label={`Remove image ${index + 1}`}
+                      >
+                        <X size={17} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <label className="flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background px-4 text-center transition hover:border-primary hover:bg-primary/5">
+              )}
+
+              {imageFiles.length < 5 && (
+                <label className="flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background px-4 text-center transition hover:border-primary hover:bg-primary/5">
                   <Upload size={34} className="mb-4 text-primary" />
 
                   <span className="text-sm font-bold text-foreground">
-                    Click to upload studio image
+                    Click to upload studio images
                   </span>
 
                   <span className="mt-2 text-xs text-muted">
-                    JPG, PNG or WEBP · Maximum 5MB
+                    JPG, PNG or WEBP · Maximum 5MB per image
+                  </span>
+
+                  <span className="mt-1 text-xs text-muted">
+                    {imageFiles.length}/5 images selected
                   </span>
 
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
-                    onChange={(e) => handleImageChange(e.target.files?.[0])}
+                    onChange={(e) => {
+                      handleImageChange(e.target.files);
+                      e.currentTarget.value = "";
+                    }}
                   />
                 </label>
               )}
+
+              <p className="mt-4 text-xs text-muted">
+                Select at least 1 image. You can add up to 5 images, and remove
+                any image before publishing.
+              </p>
             </section>
 
             {/* Submit */}
