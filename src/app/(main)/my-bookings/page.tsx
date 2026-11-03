@@ -58,6 +58,16 @@ interface StudioResponse {
   studio?: Studio;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function getApiUrl(path: string) {
+  if (!API_URL) {
+    throw new Error("API URL is not configured.");
+  }
+
+  return `${API_URL.replace(/\/$/, "")}${path}`;
+}
+
 const statusStyles: Record<BookingStatus, string> = {
   Pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   Confirmed: "bg-green-500/10 text-green-600 border-green-500/20",
@@ -112,20 +122,21 @@ export default function MyBookingsPage() {
 
     async function fetchBookings() {
       try {
-        const response = await fetch(
-          "http://localhost:5000/api/bookings/my-bookings",
-          {
-            method: "GET",
-            credentials: "include",
-            cache: "no-store",
-          },
-        );
+        const response = await fetch(getApiUrl("/api/bookings/my-bookings"), {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
 
         if (ignore) return;
 
         if (response.status === 401) {
           toast.error("Please login to view your bookings.");
-          router.push("/login");
+
+          router.push(
+            `/login?callbackURL=${encodeURIComponent("/my-bookings")}`,
+          );
+
           return;
         }
 
@@ -142,7 +153,7 @@ export default function MyBookingsPage() {
           bookingList.map(async (booking) => {
             try {
               const studioResponse = await fetch(
-                `http://localhost:5000/api/studios/${booking.studioId}`,
+                getApiUrl(`/api/studios/${booking.studioId}`),
                 {
                   method: "GET",
                   cache: "no-store",
@@ -200,7 +211,7 @@ export default function MyBookingsPage() {
       setCancellingId(bookingId);
 
       const response = await fetch(
-        `http://localhost:5000/api/bookings/${bookingId}/cancel`,
+        getApiUrl(`/api/bookings/${bookingId}/cancel`),
         {
           method: "PATCH",
           credentials: "include",
@@ -209,7 +220,9 @@ export default function MyBookingsPage() {
 
       if (response.status === 401) {
         toast.error("Please login to cancel your booking.");
-        router.push("/login");
+
+        router.push(`/login?callbackURL=${encodeURIComponent("/my-bookings")}`);
+
         return;
       }
 
@@ -238,7 +251,11 @@ export default function MyBookingsPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4">
+      <div
+        className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4"
+        role="status"
+        aria-live="polite"
+      >
         <Loader2 className="animate-spin text-primary" size={40} />
 
         <p className="text-sm font-medium text-muted">
@@ -263,6 +280,7 @@ export default function MyBookingsPage() {
         <p className="mt-3 max-w-md text-sm leading-7 text-muted">{error}</p>
 
         <button
+          type="button"
           onClick={() => {
             setError("");
             setLoading(true);
@@ -357,6 +375,7 @@ export default function MyBookingsPage() {
 
               const rentalPrice = booking.totalPrice;
               const securityDeposit = booking.studio?.securityDeposit;
+
               const totalAmount =
                 securityDeposit !== undefined
                   ? rentalPrice + securityDeposit
@@ -375,6 +394,7 @@ export default function MyBookingsPage() {
                           src={booking.studio.image}
                           alt={booking.studio.name || "Studio"}
                           fill
+                          unoptimized
                           sizes="(max-width: 768px) 100vw, 220px"
                           className="object-cover"
                         />
@@ -453,6 +473,7 @@ export default function MyBookingsPage() {
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between gap-4">
                               <span className="text-muted">Duration</span>
+
                               <span className="font-medium text-foreground">
                                 {duration} {duration === 1 ? "Hour" : "Hours"}
                               </span>
@@ -460,6 +481,7 @@ export default function MyBookingsPage() {
 
                             <div className="flex justify-between gap-4">
                               <span className="text-muted">Rental Price</span>
+
                               <span className="font-medium text-foreground">
                                 {formatPrice(rentalPrice)}
                               </span>
@@ -469,6 +491,7 @@ export default function MyBookingsPage() {
                               <span className="text-muted">
                                 Security Deposit
                               </span>
+
                               <span className="font-medium text-foreground">
                                 {securityDeposit !== undefined
                                   ? formatPrice(securityDeposit)
@@ -501,6 +524,7 @@ export default function MyBookingsPage() {
 
                           {booking.status === "Pending" && (
                             <button
+                              type="button"
                               onClick={() => handleCancelBooking(booking._id)}
                               disabled={cancellingId === booking._id}
                               className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"

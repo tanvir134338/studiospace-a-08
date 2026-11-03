@@ -67,6 +67,7 @@ const getServerSnapshot = () => false;
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -120,16 +121,45 @@ export default function Navbar() {
 
   // Logout
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+
     try {
-      await authClient.signOut();
+      const apiURL = process.env.NEXT_PUBLIC_API_URL;
+
+      if (!apiURL) {
+        throw new Error("API URL is not configured.");
+      }
+
+      // First, clear the HTTPOnly JWT cookie
+      const response = await fetch(`${apiURL}/api/session/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to clear JWT cookie.");
+      }
+
+      // Then, sign out from Better Auth
+      const result = await authClient.signOut();
+
+      if (result.error) {
+        throw new Error(result.error.message || "Logout failed.");
+      }
 
       setMobileMenuOpen(false);
       setProfileMenuOpen(false);
 
-      router.push("/");
+      router.replace("/");
       router.refresh();
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -301,10 +331,15 @@ export default function Navbar() {
                         type="button"
                         role="menuitem"
                         onClick={handleLogout}
-                        className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/10"
+                        disabled={isLoggingOut}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <LogOut size={18} />
-                        Logout
+                        {isLoggingOut ? (
+                          <span className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                        ) : (
+                          <LogOut size={18} />
+                        )}
+                        {isLoggingOut ? "Logging out..." : "Logout"}
                       </button>
                     </div>
                   </div>
@@ -419,10 +454,15 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="mt-3 flex w-full items-center gap-3 rounded-lg border border-border px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/10"
+                      disabled={isLoggingOut}
+                      className="mt-3 flex w-full items-center gap-3 rounded-lg border border-border px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <LogOut size={18} />
-                      Logout
+                      {isLoggingOut ? (
+                        <span className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                      ) : (
+                        <LogOut size={18} />
+                      )}
+                      {isLoggingOut ? "Logging out..." : "Logout"}
                     </button>
                   </>
                 ) : (

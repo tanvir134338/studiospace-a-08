@@ -112,6 +112,7 @@ function StudioDetailsContent() {
   const [studio, setStudio] = useState<Studio | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notFound, setNotFound] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -181,11 +182,22 @@ function StudioDetailsContent() {
       try {
         setLoading(true);
         setError("");
+        setNotFound(false);
 
         const response = await fetch(getApiUrl(`/api/studios/${studioId}`), {
           method: "GET",
           cache: "no-store",
         });
+
+        // Handle a missing studio separately from other API errors.
+        if (response.status === 404) {
+          if (!cancelled) {
+            setStudio(null);
+            setNotFound(true);
+            setError("");
+          }
+          return;
+        }
 
         const result: ApiResponse = await response.json();
 
@@ -195,11 +207,14 @@ function StudioDetailsContent() {
 
         if (!cancelled) {
           setStudio(result.studio);
+          setNotFound(false);
+          setError("");
           setImageError(false);
           setActiveImageIndex(0);
         }
       } catch (err) {
         if (!cancelled) {
+          setNotFound(false);
           setError(
             err instanceof Error ? err.message : "Something went wrong.",
           );
@@ -483,7 +498,39 @@ function StudioDetailsContent() {
     );
   }
 
-  // Error state
+  // Studio not found state (API returned HTTP 404)
+  if (notFound) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 text-center">
+        <div className="mb-5 rounded-2xl bg-primary/10 p-5 text-primary">
+          <Building2 size={42} />
+        </div>
+
+        <p className="mb-2 text-sm font-bold uppercase tracking-[0.2em] text-primary">
+          404 Error
+        </p>
+
+        <h1 className="text-2xl font-bold text-foreground">Studio Not Found</h1>
+
+        <p className="mt-3 max-w-md text-sm leading-7 text-muted">
+          We couldn&apos;t find the studio you&apos;re looking for. It may have
+          been removed or the link may be incorrect.
+        </p>
+
+        <div className="mt-7 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/studios"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+          >
+            <ArrowLeft size={16} />
+            Explore Studios
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Network / server / unexpected API error state
   if (error || !studio) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 text-center">
@@ -491,10 +538,13 @@ function StudioDetailsContent() {
           <Building2 size={42} />
         </div>
 
-        <h1 className="text-2xl font-bold text-foreground">Studio Not Found</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Unable to Load Studio
+        </h1>
 
         <p className="mt-3 max-w-md text-sm leading-7 text-muted">
-          {error || "We couldn't find the studio you're looking for."}
+          {error ||
+            "Something went wrong while loading this studio. Please try again."}
         </p>
 
         <div className="mt-7 flex flex-wrap justify-center gap-3">

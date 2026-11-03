@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import {
   Plus,
@@ -35,24 +36,46 @@ interface Studio {
   createdAt: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function getApiUrl(path: string) {
+  if (!API_URL) {
+    throw new Error("API URL is not configured.");
+  }
+
+  return `${API_URL.replace(/\/$/, "")}${path}`;
+}
+
 export default function MyListingsPage() {
+  const router = useRouter();
+
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [selectedStudio, setSelectedStudio] = useState<Studio | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
+  // Redirect unauthenticated users to login
+  const handleUnauthorized = useCallback(() => {
+    toast.error("Please login to view your studio listings.");
+
+    router.push(`/login?callbackURL=${encodeURIComponent("/my-listings")}`);
+  }, [router]);
 
   // Fetch user's studios
   const fetchStudios = useCallback(async (): Promise<Studio[]> => {
-    const response = await fetch(
-      "http://localhost:5000/api/studios/my-listings",
-      {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      },
-    );
+    const response = await fetch(getApiUrl("/api/studios/my-listings"), {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (response.status === 401) {
+      handleUnauthorized();
+      return [];
+    }
 
     const result = await response.json();
 
@@ -61,7 +84,7 @@ export default function MyListingsPage() {
     }
 
     return result.studios || [];
-  }, []);
+  }, [handleUnauthorized]);
 
   // Load studios when the page mounts
   useEffect(() => {
@@ -90,12 +113,12 @@ export default function MyListingsPage() {
       }
     };
 
-    loadStudios();
+    void loadStudios();
 
     return () => {
       cancelled = true;
     };
-  }, [fetchStudios]);
+  }, [fetchStudios, retryKey]);
 
   // Retry loading studios
   const handleRetry = async () => {
@@ -122,12 +145,17 @@ export default function MyListingsPage() {
       setDeleting(true);
 
       const response = await fetch(
-        `http://localhost:5000/api/studios/${selectedStudio._id}`,
+        getApiUrl(`/api/studios/${selectedStudio._id}`),
         {
           method: "DELETE",
           credentials: "include",
         },
       );
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
 
       const result = await response.json();
 
@@ -154,8 +182,13 @@ export default function MyListingsPage() {
   return (
     <ProtectedRoute>
       {loading ? (
-        <div className="flex min-h-[60vh] items-center justify-center">
+        <div
+          className="flex min-h-[60vh] items-center justify-center"
+          role="status"
+          aria-live="polite"
+        >
           <Loader2 size={34} className="animate-spin text-primary" />
+          <span className="sr-only">Loading your studio listings...</span>
         </div>
       ) : (
         <main className="min-h-screen px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
@@ -221,7 +254,10 @@ export default function MyListingsPage() {
 
             {/* Error State */}
             {error && (
-              <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+              <div
+                className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/5 p-5"
+                role="alert"
+              >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <AlertCircle className="shrink-0 text-red-500" />
@@ -275,14 +311,20 @@ export default function MyListingsPage() {
                   >
                     {/* Image */}
                     <div className="relative h-56 overflow-hidden bg-secondary">
-                      <Image
-                        src={studio.image}
-                        alt={studio.name}
-                        fill
-                        unoptimized
-                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+                      {studio.image ? (
+                        <Image
+                          src={studio.image}
+                          alt={studio.name}
+                          fill
+                          unoptimized
+                          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Building2 size={42} className="text-muted" />
+                        </div>
+                      )}
 
                       <span className="absolute left-4 top-4 rounded-full bg-background/90 px-3 py-1.5 text-xs font-bold text-foreground backdrop-blur">
                         {studio.category}

@@ -16,32 +16,6 @@ import {
 
 import { authClient } from "@/lib/auth-client";
 
-// Accept only same-site relative paths to prevent external redirects.
-function getSafeCallbackURL() {
-  const params = new URLSearchParams(window.location.search);
-  const callbackURL = params.get("callbackURL");
-
-  if (
-    !callbackURL ||
-    !callbackURL.startsWith("/") ||
-    callbackURL.startsWith("//")
-  ) {
-    return "/";
-  }
-
-  try {
-    const destination = new URL(callbackURL, window.location.origin);
-
-    if (destination.origin !== window.location.origin) {
-      return "/";
-    }
-
-    return `${destination.pathname}${destination.search}${destination.hash}`;
-  } catch {
-    return "/";
-  }
-}
-
 export default function LoginPage() {
   const router = useRouter();
 
@@ -58,13 +32,11 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    const callbackURL = getSafeCallbackURL();
-
     try {
       const result = await authClient.signIn.email({
         email,
         password,
-        callbackURL: `${window.location.origin}${callbackURL}`,
+        callbackURL: "http://localhost:3000/",
       });
 
       if (result.error) {
@@ -73,7 +45,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace(callbackURL);
+      router.replace("/");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
@@ -86,13 +58,12 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    const callbackURL = getSafeCallbackURL();
-
     try {
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: `${window.location.origin}${callbackURL}`,
-        errorCallbackURL: `${window.location.origin}/register?reason=google-signup-required`,
+        callbackURL: "http://localhost:3000/",
+        errorCallbackURL:
+          "http://localhost:3000/register?reason=google-signup-required",
       });
 
       if (result.error) {

@@ -31,7 +31,7 @@ interface Booking {
   date: string;
   startTime: string;
   endTime: string;
-  totalPrice: number;
+  totalPrice?: number;
   status: BookingStatus;
   createdAt: string;
 }
@@ -50,6 +50,23 @@ interface DashboardData {
   bookings: Booking[];
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  studios?: T[];
+  bookings?: T[];
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function getApiUrl(path: string) {
+  if (!API_URL) {
+    throw new Error("API URL is not configured. Check your .env.local file.");
+  }
+
+  return `${API_URL.replace(/\/$/, "")}${path}`;
+}
+
 const statusStyles: Record<BookingStatus, string> = {
   Pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   Confirmed: "bg-green-500/10 text-green-600 border-green-500/20",
@@ -58,14 +75,27 @@ const statusStyles: Record<BookingStatus, string> = {
 };
 
 function formatDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+  if (!date) return "Date unavailable";
+
+  const parsedDate = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Invalid date";
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
 
-function formatPrice(amount: number) {
+// Safely format prices, even when API data is missing.
+function formatPrice(amount: number | null | undefined) {
+  if (typeof amount !== "number" || !Number.isFinite(amount)) {
+    return "৳—";
+  }
+
   return `৳${amount.toLocaleString("en-BD")}`;
 }
 
@@ -90,13 +120,13 @@ export default function DashboardPage() {
         setError("");
 
         const [studiosResponse, bookingsResponse] = await Promise.all([
-          fetch("http://localhost:5000/api/studios/my-listings", {
+          fetch(getApiUrl("/api/studios/my-listings"), {
             method: "GET",
             credentials: "include",
             cache: "no-store",
           }),
 
-          fetch("http://localhost:5000/api/bookings/my-bookings", {
+          fetch(getApiUrl("/api/bookings/my-bookings"), {
             method: "GET",
             credentials: "include",
             cache: "no-store",
@@ -112,8 +142,8 @@ export default function DashboardPage() {
         }
 
         const [studiosResult, bookingsResult] = await Promise.all([
-          studiosResponse.json(),
-          bookingsResponse.json(),
+          studiosResponse.json() as Promise<ApiResponse<Studio>>,
+          bookingsResponse.json() as Promise<ApiResponse<Booking>>,
         ]);
 
         if (!studiosResponse.ok || !studiosResult.success) {
@@ -130,8 +160,12 @@ export default function DashboardPage() {
 
         if (!ignore) {
           setData({
-            studios: studiosResult.studios || [],
-            bookings: bookingsResult.bookings || [],
+            studios: Array.isArray(studiosResult.studios)
+              ? studiosResult.studios
+              : [],
+            bookings: Array.isArray(bookingsResult.bookings)
+              ? bookingsResult.bookings
+              : [],
           });
         }
       } catch (err) {
