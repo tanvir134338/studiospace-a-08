@@ -47,7 +47,7 @@ StudioSpace is a full-stack studio rental platform designed to connect people lo
 
 ### Installation
 
-Clone the repository:
+Clone the repository: https://github.com/tanvir134338/studiospace-a-08
 
 ```bash
 git clone YOUR_FRONTEND_REPOSITORY_URL
