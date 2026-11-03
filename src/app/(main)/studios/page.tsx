@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import {
   Search,
   MapPin,
@@ -38,64 +40,96 @@ const categories = [
   { value: "events", label: "Events & Workshops" },
 ];
 
-export default function ExploreStudiosPage() {
+// Normalize category values from the database
+function normalizeCategory(category: string | undefined) {
+  const value = (category || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[_]/g, "-")
+    .replace(/\s+/g, " ");
+
+  const categoryMap: Record<string, string> = {
+    photography: "photography",
+    "photography studio": "photography",
+    "photography studios": "photography",
+
+    "film video": "film-video",
+    "film & video": "film-video",
+    "film-video": "film-video",
+
+    podcast: "podcast",
+    "podcast studio": "podcast",
+    "podcast studios": "podcast",
+
+    music: "music",
+    "music production": "music",
+
+    creative: "creative",
+    "creative space": "creative",
+    "creative spaces": "creative",
+
+    events: "events",
+    event: "events",
+    "events & workshops": "events",
+    "events and workshops": "events",
+  };
+
+  return categoryMap[value] || value;
+}
+
+// Fetch studios from API
+async function getStudios(): Promise<Studio[]> {
+  const response = await fetch("http://localhost:5000/api/studios", {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to load studios.");
+  }
+
+  return result.studios || [];
+}
+
+// Main Explore Studios Content
+function ExploreStudiosContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("default");
 
-  // Fetch all studios
-  const fetchStudios = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  // Read category directly from the URL
+  const categoryParam = searchParams.get("category");
 
-      const response = await fetch("http://localhost:5000/api/studios", {
-        method: "GET",
-        cache: "no-store",
-      });
+  const normalizedCategory = normalizeCategory(categoryParam || "");
 
-      const result = await response.json();
+  const selectedCategory = categories.some(
+    (category) => category.value === normalizedCategory,
+  )
+    ? normalizedCategory
+    : "all";
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Failed to load studios.");
-      }
-
-      setStudios(result.studios || []);
-    } catch (err) {
-      console.error("Failed to fetch studios:", err);
-
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Load studios when the page mounts
   useEffect(() => {
-    let cancelled = false;
+    let ignore = false;
 
-    const loadStudios = async () => {
+    async function loadStudios() {
       try {
-        const response = await fetch("http://localhost:5000/api/studios", {
-          method: "GET",
-          cache: "no-store",
-        });
+        const studioData = await getStudios();
 
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.message || "Failed to load studios.");
-        }
-
-        if (!cancelled) {
-          setStudios(result.studios || []);
+        if (!ignore) {
+          setStudios(studioData);
           setError("");
         }
       } catch (err) {
-        if (!cancelled) {
+        if (!ignore) {
           console.error("Failed to fetch studios:", err);
 
           setError(
@@ -103,16 +137,16 @@ export default function ExploreStudiosPage() {
           );
         }
       } finally {
-        if (!cancelled) {
+        if (!ignore) {
           setLoading(false);
         }
       }
-    };
+    }
 
     loadStudios();
 
     return () => {
-      cancelled = true;
+      ignore = true;
     };
   }, []);
 
@@ -122,18 +156,23 @@ export default function ExploreStudiosPage() {
 
     const searchTerm = search.trim().toLowerCase();
 
+    // Search by studio name or location
     if (searchTerm) {
       result = result.filter(
         (studio) =>
-          studio.name.toLowerCase().includes(searchTerm) ||
-          studio.location.toLowerCase().includes(searchTerm),
+          (studio.name || "").toLowerCase().includes(searchTerm) ||
+          (studio.location || "").toLowerCase().includes(searchTerm),
       );
     }
 
+    // Filter by category
     if (selectedCategory !== "all") {
-      result = result.filter((studio) => studio.category === selectedCategory);
+      result = result.filter(
+        (studio) => normalizeCategory(studio.category) === selectedCategory,
+      );
     }
 
+    // Sort by price
     if (sortBy === "low-to-high") {
       result.sort((a, b) => a.pricePerHour - b.pricePerHour);
     } else if (sortBy === "high-to-low") {
@@ -143,11 +182,43 @@ export default function ExploreStudiosPage() {
     return result;
   }, [studios, search, selectedCategory, sortBy]);
 
-  // Reset filters
+  // Handle category selection
+  const handleCategoryChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (value === "all") {
+      params.delete("category");
+    } else {
+      params.set("category", value);
+    }
+
+    const query = params.toString();
+
+    router.push(query ? `/studios?${query}` : "/studios");
+  };
+
+  // Reset all filters
   const resetFilters = () => {
     setSearch("");
-    setSelectedCategory("all");
     setSortBy("default");
+    router.push("/studios");
+  };
+
+  // Retry fetching studios
+  const handleRetry = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const studioData = await getStudios();
+      setStudios(studioData);
+    } catch (err) {
+      console.error("Failed to fetch studios:", err);
+
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -197,7 +268,7 @@ export default function ExploreStudiosPage() {
 
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full appearance-none rounded-xl border border-border bg-background py-3.5 pl-11 pr-4 text-sm text-foreground outline-none transition focus:border-primary"
               >
                 {categories.map((category) => (
@@ -274,7 +345,7 @@ export default function ExploreStudiosPage() {
 
             <button
               type="button"
-              onClick={fetchStudios}
+              onClick={handleRetry}
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent"
             >
               <RefreshCw size={17} />
@@ -350,7 +421,7 @@ export default function ExploreStudiosPage() {
                   )}
 
                   <span className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs font-bold capitalize text-white backdrop-blur">
-                    {studio.category.replace("-", " ")}
+                    {studio.category || "Studio"}
                   </span>
                 </div>
 
@@ -403,5 +474,21 @@ export default function ExploreStudiosPage() {
         )}
       </div>
     </main>
+  );
+}
+
+// Page with Suspense boundary for useSearchParams
+export default function ExploreStudiosPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] flex-col items-center justify-center">
+          <Loader2 size={35} className="animate-spin text-primary" />
+          <p className="mt-4 text-sm text-muted">Loading studios...</p>
+        </div>
+      }
+    >
+      <ExploreStudiosContent />
+    </Suspense>
   );
 }

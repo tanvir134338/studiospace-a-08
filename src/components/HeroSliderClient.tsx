@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+
+import { authClient } from "@/lib/auth-client";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
@@ -56,11 +59,27 @@ const slides = [
 ];
 
 export default function HeroSliderClient() {
+  const router = useRouter();
+
+  // BetterAuth Session
+  const { data: session, isPending } = authClient.useSession();
+
   const mounted = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot,
   );
+
+  // Host Your Space Navigation
+  const handleHostSpace = () => {
+    if (isPending) return;
+
+    if (session?.user) {
+      router.push("/add-studio");
+    } else {
+      router.push("/register");
+    }
+  };
 
   // Render a static placeholder during server rendering
   if (!mounted) {
@@ -152,13 +171,15 @@ export default function HeroSliderClient() {
                         />
                       </Link>
 
-                      <Link
-                        href="/register"
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/10 px-6 py-4 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/20"
+                      <button
+                        type="button"
+                        onClick={handleHostSpace}
+                        disabled={isPending}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/10 px-6 py-4 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Host Your Space
                         <ArrowUpRight size={18} />
-                      </Link>
+                      </button>
                     </div>
 
                     {/* Slide Label */}
