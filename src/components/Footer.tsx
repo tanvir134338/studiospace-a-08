@@ -19,6 +19,24 @@ const categories = [
   { name: "Events & Workshops", slug: "events" },
 ];
 
+const socialLinks = [
+  {
+    name: "Facebook",
+    href: "https://www.facebook.com/",
+    icon: FaFacebookF,
+  },
+  {
+    name: "Twitter",
+    href: "https://www.twitter.com/",
+    icon: FaTwitter,
+  },
+  {
+    name: "LinkedIn",
+    href: "https://www.linkedin.com/",
+    icon: FaLinkedin,
+  },
+];
+
 export default function Footer() {
   return (
     <footer className="border-t border-border bg-card/50">
@@ -29,6 +47,7 @@ export default function Footer() {
           <div>
             <Link
               href="/"
+              aria-label="StudioSpace Home"
               className="group mb-5 inline-flex items-center gap-2.5"
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-transform duration-300 group-hover:rotate-12">
@@ -48,40 +67,27 @@ export default function Footer() {
 
             {/* Social Links */}
             <div className="mt-6 flex items-center gap-3">
-              <a
-                href="https://www.facebook.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <FaFacebookF size={17} />
-              </a>
+              {socialLinks.map((social) => {
+                const Icon = social.icon;
 
-              <a
-                href="https://www.twitter.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <FaTwitter size={18} />
-              </a>
-
-              <a
-                href="https://www.linkedin.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="YouTube"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <FaLinkedin size={19} />
-              </a>
+                return (
+                  <a
+                    key={social.name}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Visit StudioSpace on ${social.name}`}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <Icon size={18} aria-hidden="true" />
+                  </a>
+                );
+              })}
             </div>
           </div>
 
           {/* Quick Links */}
-          <div>
+          <nav aria-label="Footer quick links">
             <h3 className="mb-5 text-base font-bold text-foreground">
               Quick Links
             </h3>
@@ -97,16 +103,17 @@ export default function Footer() {
 
                     <ArrowUpRight
                       size={14}
+                      aria-hidden="true"
                       className="opacity-0 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
                     />
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
           {/* Categories */}
-          <div>
+          <nav aria-label="Studio categories">
             <h3 className="mb-5 text-base font-bold text-foreground">
               Explore Categories
             </h3>
@@ -123,7 +130,7 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
           {/* Contact */}
           <div>
@@ -137,24 +144,36 @@ export default function Footer() {
 
             <div className="space-y-4">
               <div className="flex items-start gap-3 text-sm text-muted">
-                <Mail size={18} className="mt-0.5 shrink-0 text-primary" />
+                <Mail
+                  size={18}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0 text-primary"
+                />
                 <span>sample@example.com</span>
               </div>
 
               <div className="flex items-start gap-3 text-sm text-muted">
-                <MapPin size={18} className="mt-0.5 shrink-0 text-primary" />
+                <MapPin
+                  size={18}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0 text-primary"
+                />
                 <span>Bangladesh</span>
               </div>
 
               <div className="flex items-start gap-3 text-sm text-muted">
-                <Phone size={18} className="mt-0.5 shrink-0 text-primary" />
+                <Phone
+                  size={18}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0 text-primary"
+                />
                 <span>+880 1234 567890</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Newsletter Area */}
+        {/* Newsletter / Discover CTA */}
         <div className="mt-12 rounded-2xl border border-border bg-background p-6 sm:mt-16 sm:p-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
             <div>
@@ -173,7 +192,7 @@ export default function Footer() {
               className="inline-flex w-fit shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90"
             >
               Discover Studios
-              <ArrowUpRight size={17} />
+              <ArrowUpRight size={17} aria-hidden="true" />
             </Link>
           </div>
         </div>

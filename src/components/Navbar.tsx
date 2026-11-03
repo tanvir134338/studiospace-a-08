@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useSyncExternalStore } from "react";
+import {
+  useState,
+  useSyncExternalStore,
+  useEffect,
+  useRef,
+  useId,
+} from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 
@@ -73,12 +79,44 @@ export default function Navbar() {
     getServerSnapshot,
   );
 
+  // Profile Dropdown References
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileMenuId = useId();
+
   const user = session?.user;
 
   // Theme Toggle
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
   };
+
+  // Close Profile Dropdown on Outside Click and Escape
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [profileMenuOpen]);
 
   // Logout
   const handleLogout = async () => {
@@ -95,7 +133,7 @@ export default function Navbar() {
     }
   };
 
-  // Close menus
+  // Close Menus
   const closeMenus = () => {
     setMobileMenuOpen(false);
     setProfileMenuOpen(false);
@@ -197,11 +235,13 @@ export default function Navbar() {
           {/* User Profile */}
           {!isPending &&
             (user ? (
-              <div className="relative">
+              <div ref={profileMenuRef} className="relative">
                 <button
                   type="button"
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  onClick={() => setProfileMenuOpen((previous) => !previous)}
                   aria-expanded={profileMenuOpen}
+                  aria-haspopup="menu"
+                  aria-controls={profileMenuId}
                   aria-label="Open profile menu"
                   className="flex max-w-[210px] items-center gap-2 rounded-xl border border-border px-3 py-2 transition-colors hover:bg-secondary"
                 >
@@ -221,7 +261,12 @@ export default function Navbar() {
 
                 {/* Profile Dropdown */}
                 {profileMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-xl border border-border bg-background p-2 shadow-xl">
+                  <div
+                    id={profileMenuId}
+                    role="menu"
+                    aria-label="User profile menu"
+                    className="absolute right-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-xl border border-border bg-background p-2 shadow-xl"
+                  >
                     <div className="border-b border-border px-3 py-3">
                       <p className="truncate text-sm font-bold text-foreground">
                         {user.name}
@@ -240,6 +285,7 @@ export default function Navbar() {
                           <Link
                             key={link.href}
                             href={link.href}
+                            role="menuitem"
                             onClick={closeMenus}
                             className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary hover:text-primary"
                           >
@@ -253,6 +299,7 @@ export default function Navbar() {
                     <div className="border-t border-border pt-2">
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={handleLogout}
                         className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/10"
                       >
