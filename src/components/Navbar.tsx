@@ -10,7 +10,7 @@ import {
   useId,
 } from "react";
 import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   Aperture,
@@ -71,6 +71,7 @@ export default function Navbar() {
 
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
 
   const { data: session, isPending } = authClient.useSession();
 
@@ -89,6 +90,20 @@ export default function Navbar() {
   // Theme Toggle
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  // Home Navigation and Scroll to Top
+  const handleHomeClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    closeMenus();
+
+    if (pathname === "/") {
+      event.preventDefault();
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
   };
 
   // Close Profile Dropdown on Outside Click and Escape
@@ -203,7 +218,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link
           href="/"
-          onClick={closeMenus}
+          onClick={handleHomeClick}
           className="group flex shrink-0 items-center gap-2.5"
         >
           <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground transition-all duration-300 group-hover:rotate-12 group-hover:scale-110 group-hover:rounded-2xl">
@@ -237,6 +252,7 @@ export default function Navbar() {
             <Link
               key={link.href}
               href={link.href}
+              onClick={link.href === "/" ? handleHomeClick : undefined}
               className="whitespace-nowrap text-sm font-medium text-muted transition-colors hover:text-accent"
             >
               {link.name}
@@ -404,7 +420,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={closeMenus}
+                onClick={link.href === "/" ? handleHomeClick : closeMenus}
                 className="rounded-lg px-4 py-3 text-sm font-medium transition-colors hover:bg-secondary hover:text-accent"
               >
                 {link.name}
