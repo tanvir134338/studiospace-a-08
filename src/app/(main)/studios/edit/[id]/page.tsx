@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
-
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,7 +8,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Upload,
-  X,
   Plus,
   Building2,
   MapPin,
@@ -17,6 +15,8 @@ import {
   Users,
   Image as ImageIcon,
   Loader2,
+  Star,
+  Trash2,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -58,7 +58,15 @@ interface Studio {
   capacity: number;
   amenities: string[];
   image: string;
+  images?: string[];
   ownerId: string;
+}
+
+// Gallery image type
+interface GalleryImage {
+  id: string;
+  url: string;
+  file: File | null;
 }
 
 function EditStudioForm() {
@@ -80,9 +88,8 @@ function EditStudioForm() {
   const [capacity, setCapacity] = useState("");
   const [amenities, setAmenities] = useState<string[]>([]);
 
-  // Image states
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState("");
+  // Gallery states
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
 
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -125,15 +132,26 @@ function EditStudioForm() {
         setDescription(studio.description || "");
         setLocation(studio.location || "");
         setCategory(studio.category || "");
-
         setPricePerHour(String(studio.pricePerHour ?? ""));
-
         setSecurityDeposit(String(studio.securityDeposit ?? ""));
-
         setCapacity(String(studio.capacity ?? ""));
-
         setAmenities(studio.amenities || []);
-        setImagePreview(studio.image || "");
+
+        // Load existing gallery
+        const existingImages =
+          studio.images && studio.images.length > 0
+            ? studio.images
+            : studio.image
+              ? [studio.image]
+              : [];
+
+        setGalleryImages(
+          existingImages.slice(0, 5).map((url, index) => ({
+            id: `existing-${index}-${url}`,
+            url,
+            file: null,
+          })),
+        );
       } catch (error) {
         if (!cancelled) {
           setPageError(
@@ -154,37 +172,90 @@ function EditStudioForm() {
     };
   }, [isPending, user, studioId]);
 
-  // Handle image selection
-  const handleImageChange = (file: File | undefined) => {
-    if (!file) return;
+  // Clean up temporary image previews
+  useEffect(() => {
+    return () => {
+      galleryImages.forEach((image) => {
+        if (image.file && image.url.startsWith("blob:")) {
+          URL.revokeObjectURL(image.url);
+        }
+      });
+    };
+  }, [galleryImages]);
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image.");
+  // Add new gallery images
+  const handleImageChange = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 5 - galleryImages.length;
+
+    if (remainingSlots <= 0) {
+      toast.error("You can upload a maximum of 5 images.");
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB.");
-      return;
+    const selectedFiles = Array.from(files);
+
+    if (selectedFiles.length > remainingSlots) {
+      toast.error(
+        `You can add only ${remainingSlots} more image(s). Maximum 5 images allowed.`,
+      );
     }
 
-    // Revoke previous local preview
-    if (imagePreview.startsWith("blob:")) {
-      URL.revokeObjectURL(imagePreview);
+    const validFiles: GalleryImage[] = [];
+
+    for (const file of selectedFiles.slice(0, remainingSlots)) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not a valid image.`);
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds the 5MB size limit.`);
+        continue;
+      }
+
+      validFiles.push({
+        id: crypto.randomUUID(),
+        url: URL.createObjectURL(file),
+        file,
+      });
     }
 
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    if (validFiles.length > 0) {
+      setGalleryImages((previous) => [...previous, ...validFiles]);
+    }
   };
 
-  // Remove selected image
-  const removeImage = () => {
-    if (imagePreview.startsWith("blob:")) {
-      URL.revokeObjectURL(imagePreview);
+  // Remove gallery image
+  const removeImage = (imageId: string) => {
+    const imageToRemove = galleryImages.find((image) => image.id === imageId);
+
+    if (imageToRemove?.file && imageToRemove.url.startsWith("blob:")) {
+      URL.revokeObjectURL(imageToRemove.url);
     }
 
-    setImageFile(null);
-    setImagePreview("");
+    setGalleryImages((previous) =>
+      previous.filter((image) => image.id !== imageId),
+    );
+  };
+
+  // Make selected image the cover image
+  const makeCoverImage = (imageId: string) => {
+    setGalleryImages((previous) => {
+      const selectedIndex = previous.findIndex((image) => image.id === imageId);
+
+      if (selectedIndex <= 0) return previous;
+
+      const updatedImages = [...previous];
+      const [selectedImage] = updatedImages.splice(selectedIndex, 1);
+
+      updatedImages.unshift(selectedImage);
+
+      return updatedImages;
+    });
+
+    toast.success("Cover image changed.");
   };
 
   // Toggle amenities
@@ -194,6 +265,30 @@ function EditStudioForm() {
         ? previous.filter((item) => item !== amenity)
         : [...previous, amenity],
     );
+  };
+
+  // Upload a new image to ImgBB
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const uploadResponse = await fetch("http://localhost:5000/api/upload", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+
+    const uploadResult = await uploadResponse.json();
+
+    if (!uploadResponse.ok || !uploadResult.success) {
+      throw new Error(uploadResult.message || "Image upload failed.");
+    }
+
+    if (!uploadResult.imageUrl) {
+      throw new Error("Image upload did not return a valid URL.");
+    }
+
+    return uploadResult.imageUrl;
   };
 
   // Update studio
@@ -211,8 +306,13 @@ function EditStudioForm() {
       return;
     }
 
-    if (!imagePreview) {
-      toast.error("Please upload a studio image.");
+    if (galleryImages.length === 0) {
+      toast.error("Please keep at least one studio image.");
+      return;
+    }
+
+    if (galleryImages.length > 5) {
+      toast.error("You can keep a maximum of 5 images.");
       return;
     }
 
@@ -222,8 +322,11 @@ function EditStudioForm() {
     }
 
     if (
+      !Number.isFinite(Number(pricePerHour)) ||
       Number(pricePerHour) <= 0 ||
+      !Number.isFinite(Number(securityDeposit)) ||
       Number(securityDeposit) < 0 ||
+      !Number.isFinite(Number(capacity)) ||
       Number(capacity) <= 0
     ) {
       toast.error("Please enter valid pricing and capacity.");
@@ -233,26 +336,20 @@ function EditStudioForm() {
     try {
       setSaving(true);
 
-      let imageUrl = imagePreview;
+      // Keep existing URLs and upload only new images
+      const imageUrls: string[] = [];
 
-      // Upload new image only when selected
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append("image", imageFile);
-
-        const uploadResponse = await fetch("http://localhost:5000/api/upload", {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-        });
-
-        const uploadResult = await uploadResponse.json();
-
-        if (!uploadResponse.ok || !uploadResult.success) {
-          throw new Error(uploadResult.message || "Image upload failed.");
+      for (const image of galleryImages) {
+        if (image.file) {
+          const uploadedUrl = await uploadImage(image.file);
+          imageUrls.push(uploadedUrl);
+        } else {
+          imageUrls.push(image.url);
         }
+      }
 
-        imageUrl = uploadResult.imageUrl;
+      if (imageUrls.length === 0) {
+        throw new Error("At least one studio image is required.");
       }
 
       // Updated studio information
@@ -265,7 +362,12 @@ function EditStudioForm() {
         securityDeposit: Number(securityDeposit),
         capacity: Number(capacity),
         amenities,
-        image: imageUrl,
+
+        // First image is the cover image
+        image: imageUrls[0],
+
+        // Complete gallery
+        images: imageUrls,
       };
 
       // Update studio in MongoDB
@@ -626,83 +728,132 @@ function EditStudioForm() {
             </p>
           </section>
 
-          {/* Studio Image */}
+          {/* Studio Gallery */}
           <section className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                <ImageIcon size={21} />
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold text-foreground">
-                  Studio Image *
-                </h2>
-
-                <p className="text-xs text-muted">
-                  Keep your current image or upload a new one
-                </p>
-              </div>
-            </div>
-
-            {imagePreview ? (
-              <div className="relative overflow-hidden rounded-xl border border-border">
-                <div className="relative h-64 w-full sm:h-80">
-                  <Image
-                    src={imagePreview}
-                    alt="Studio preview"
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 768px"
-                    className="object-cover"
-                    unoptimized={imagePreview.startsWith("blob:")}
-                  />
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <ImageIcon size={21} />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500"
-                  aria-label="Remove image"
-                >
-                  <X size={19} />
-                </button>
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    Studio Gallery *
+                  </h2>
 
-                <label className="absolute bottom-3 right-3 flex cursor-pointer items-center gap-2 rounded-lg bg-black/75 px-4 py-2 text-xs font-semibold text-white transition hover:bg-black">
-                  <Upload size={15} />
-                  Change Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      handleImageChange(e.target.files?.[0]);
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                </label>
+                  <p className="text-xs text-muted">
+                    Manage your studio photos and cover image
+                  </p>
+                </div>
               </div>
-            ) : (
-              <label className="flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background px-4 text-center transition hover:border-primary hover:bg-primary/5">
-                <Upload size={34} className="mb-4 text-primary" />
+
+              <span className="w-fit rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
+                {galleryImages.length}/5 Images
+              </span>
+            </div>
+
+            {/* Gallery Images */}
+            {galleryImages.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {galleryImages.map((image, index) => (
+                  <div
+                    key={image.id}
+                    className={`relative overflow-hidden rounded-xl border ${
+                      index === 0
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border"
+                    }`}
+                  >
+                    <div className="relative aspect-[4/3] w-full bg-secondary">
+                      <Image
+                        src={image.url}
+                        alt={`Studio gallery image ${index + 1}`}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 33vw"
+                        className="object-cover"
+                        unoptimized={image.url.startsWith("blob:")}
+                      />
+                    </div>
+
+                    {/* Cover Badge */}
+                    {index === 0 && (
+                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1.5 text-[10px] font-bold text-primary-foreground shadow">
+                        <Star size={12} fill="currentColor" />
+                        Cover Image
+                      </span>
+                    )}
+
+                    {/* Remove Button */}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(image.id)}
+                      disabled={saving}
+                      aria-label="Remove image"
+                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+
+                    {/* Make Cover Button */}
+                    {index !== 0 && (
+                      <button
+                        type="button"
+                        onClick={() => makeCoverImage(image.id)}
+                        disabled={saving}
+                        className="absolute bottom-2 left-2 right-2 rounded-lg bg-black/75 px-2 py-2 text-[10px] font-bold text-white transition hover:bg-primary disabled:opacity-50 sm:text-xs"
+                      >
+                        Make Cover
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add Images */}
+            {galleryImages.length < 5 && (
+              <label className="mt-5 flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-background px-4 py-6 text-center transition hover:border-primary hover:bg-primary/5">
+                <div className="mb-3 rounded-full bg-primary/10 p-3 text-primary">
+                  <Upload size={24} />
+                </div>
 
                 <span className="text-sm font-bold text-foreground">
-                  Click to upload studio image
+                  Add More Images
                 </span>
 
                 <span className="mt-2 text-xs text-muted">
-                  JPG, PNG or WEBP · Maximum 5MB
+                  JPG, PNG or WEBP · Maximum 5MB per image
+                </span>
+
+                <span className="mt-1 text-xs text-muted">
+                  You can add {5 - galleryImages.length} more image(s).
                 </span>
 
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
+                  disabled={saving}
                   className="hidden"
                   onChange={(e) => {
-                    handleImageChange(e.target.files?.[0]);
+                    handleImageChange(e.target.files);
                     e.currentTarget.value = "";
                   }}
                 />
               </label>
             )}
+
+            {galleryImages.length === 0 && (
+              <p className="mt-4 text-center text-xs font-medium text-red-500">
+                At least one image is required.
+              </p>
+            )}
+
+            <p className="mt-5 text-xs leading-6 text-muted">
+              The first image will be displayed as your studio cover image. You
+              can change the cover image anytime using the Make Cover button.
+              Maximum 5 images are allowed.
+            </p>
           </section>
 
           {/* Submit Buttons */}
