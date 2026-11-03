@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+
 import {
   ShieldCheck,
   Headphones,
@@ -21,8 +26,24 @@ const creatorBenefits = [
 ];
 
 export default function HostGuarantee() {
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
+
+  const handleBecomeHost = () => {
+    if (isPending) return;
+
+    if (session?.user) {
+      router.push("/add-studio");
+    } else {
+      router.push("/register");
+    }
+  };
+
   return (
-    <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+    <section
+      aria-labelledby="host-guarantee-heading"
+      className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
+    >
       <div className="mx-auto max-w-[1440px]">
         {/* Section Heading */}
         <div className="mx-auto mb-12 max-w-2xl text-center sm:mb-16">
@@ -30,7 +51,10 @@ export default function HostGuarantee() {
             Built for Hosts & Creators
           </span>
 
-          <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2
+            id="host-guarantee-heading"
+            className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
             A Better Experience for{" "}
             <span className="text-primary">Everyone.</span>
           </h2>
@@ -44,9 +68,12 @@ export default function HostGuarantee() {
         {/* Feature Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Host Card */}
-          <div className="group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 sm:p-8 lg:p-10">
+          <article className="group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 sm:p-8 lg:p-10">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+              <div
+                aria-hidden="true"
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
+              >
                 <ShieldCheck size={32} strokeWidth={1.7} />
               </div>
 
@@ -76,6 +103,7 @@ export default function HostGuarantee() {
                 >
                   <CheckCircle2
                     size={19}
+                    aria-hidden="true"
                     className="mt-0.5 shrink-0 text-primary"
                   />
                   <span>{benefit}</span>
@@ -83,22 +111,28 @@ export default function HostGuarantee() {
               ))}
             </ul>
 
-            <Link
-              href="/add-studio"
-              className="group/link mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-accent"
+            <button
+              type="button"
+              onClick={handleBecomeHost}
+              disabled={isPending}
+              className="group/link mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
               Become a Host
               <ArrowRight
                 size={17}
+                aria-hidden="true"
                 className="transition-transform duration-300 group-hover/link:translate-x-1"
               />
-            </Link>
-          </div>
+            </button>
+          </article>
 
           {/* Creator Card */}
-          <div className="group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 sm:p-8 lg:p-10">
+          <article className="group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 sm:p-8 lg:p-10">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+              <div
+                aria-hidden="true"
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
+              >
                 <Headphones size={32} strokeWidth={1.7} />
               </div>
 
@@ -128,6 +162,7 @@ export default function HostGuarantee() {
                 >
                   <CheckCircle2
                     size={19}
+                    aria-hidden="true"
                     className="mt-0.5 shrink-0 text-primary"
                   />
                   <span>{benefit}</span>
@@ -142,16 +177,20 @@ export default function HostGuarantee() {
               Explore Studios
               <ArrowRight
                 size={17}
+                aria-hidden="true"
                 className="transition-transform duration-300 group-hover/link:translate-x-1"
               />
             </Link>
-          </div>
+          </article>
         </div>
 
         {/* Bottom Message */}
         <div className="mt-8 grid grid-cols-1 gap-4 rounded-2xl border border-border bg-card/50 p-6 sm:grid-cols-2 sm:p-8">
           <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div
+              aria-hidden="true"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
               <Handshake size={23} />
             </div>
 
@@ -159,6 +198,7 @@ export default function HostGuarantee() {
               <h4 className="font-bold text-foreground">
                 Built Around Collaboration
               </h4>
+
               <p className="mt-1 text-sm leading-6 text-muted">
                 Bringing studio hosts and creative professionals together.
               </p>
@@ -166,12 +206,16 @@ export default function HostGuarantee() {
           </div>
 
           <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div
+              aria-hidden="true"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
               <Lightbulb size={23} />
             </div>
 
             <div>
               <h4 className="font-bold text-foreground">Your Ideas Matter</h4>
+
               <p className="mt-1 text-sm leading-6 text-muted">
                 Find the right environment to turn creative ideas into reality.
               </p>
