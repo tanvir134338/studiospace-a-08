@@ -1,6 +1,7 @@
 import HeroSlider from "@/components/HeroSliderClient";
 import FeaturedStudios from "@/components/FeaturedStudios";
 import CategoryShowcase from "@/components/CategoryShowcase";
+import HowBookingWorks from "@/components/HowBookingWorks";
 
 export default function Home() {
   return (
@@ -8,6 +9,7 @@ export default function Home() {
       <HeroSlider />
       <FeaturedStudios />
       <CategoryShowcase />
+      <HowBookingWorks />
     </>
   );
 }
