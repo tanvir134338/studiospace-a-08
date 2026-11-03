@@ -21,6 +21,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Star,
+  MessageSquare,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -43,10 +45,28 @@ interface Studio {
   updatedAt?: string;
 }
 
+// Review data type
+interface Review {
+  _id: string;
+  studioId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface ApiResponse {
   success: boolean;
   message?: string;
   studio?: Studio;
+}
+
+interface ReviewsApiResponse {
+  success: boolean;
+  message?: string;
+  reviews: Review[];
 }
 
 // Category labels
@@ -67,6 +87,15 @@ function getTodayDate() {
   const day = String(today.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+// Format review date
+function formatReviewDate(date: string) {
+  return new Date(date).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 // Main details component
@@ -92,6 +121,13 @@ function StudioDetailsContent() {
   const [endTime, setEndTime] = useState("11:00");
   const [bookingLoading, setBookingLoading] = useState(false);
 
+  // Review states
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+
   // Gallery images with old studio fallback
   const galleryImages =
     studio?.images && studio.images.length > 0
@@ -99,6 +135,13 @@ function StudioDetailsContent() {
       : studio?.image
         ? [studio.image]
         : [];
+
+  // Calculate average rating
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((total, review) => total + review.rating, 0) /
+        reviews.length
+      : 0;
 
   // Fetch studio details
   useEffect(() => {
@@ -149,6 +192,52 @@ function StudioDetailsContent() {
       cancelled = true;
     };
   }, [studioId, retryKey]);
+
+  // Fetch studio reviews
+  useEffect(() => {
+    if (!studioId) return;
+
+    let cancelled = false;
+
+    const fetchReviews = async () => {
+      try {
+        setReviewsLoading(true);
+
+        const response = await fetch(
+          `http://localhost:5000/api/reviews/${studioId}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
+
+        const result: ReviewsApiResponse = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Unable to load reviews.");
+        }
+
+        if (!cancelled) {
+          setReviews(result.reviews || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to fetch reviews:", err);
+          setReviews([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setReviewsLoading(false);
+        }
+      }
+    };
+
+    fetchReviews();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [studioId]);
 
   // Retry loading
   const handleRetry = () => {
@@ -251,6 +340,81 @@ function StudioDetailsContent() {
       setBookingLoading(false);
     }
   };
+
+  // Submit review
+  const handleReviewSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!studio) return;
+
+    if (reviewRating < 1 || reviewRating > 5) {
+      toast.error("Please select a star rating.");
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      toast.error("Please write your review.");
+      return;
+    }
+
+    try {
+      setReviewLoading(true);
+
+      const response = await fetch("http://localhost:5000/api/reviews", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studioId: studio._id,
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.status === 401) {
+        toast.error("Please login before submitting a review.");
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to submit review.");
+      }
+
+      toast.success("Your review has been submitted successfully!");
+
+      setReviewRating(0);
+      setReviewComment("");
+
+      // Refresh reviews after successful submission
+      const reviewsResponse = await fetch(
+        `http://localhost:5000/api/reviews/${studio._id}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      const reviewsResult: ReviewsApiResponse = await reviewsResponse.json();
+
+      if (reviewsResponse.ok && reviewsResult.success) {
+        setReviews(reviewsResult.reviews || []);
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -339,7 +503,6 @@ function StudioDetailsContent() {
                     {/* Carousel Controls */}
                     {galleryImages.length > 1 && (
                       <>
-                        {/* Previous Button */}
                         <button
                           type="button"
                           onClick={() => {
@@ -356,7 +519,6 @@ function StudioDetailsContent() {
                           <ChevronLeft size={22} />
                         </button>
 
-                        {/* Next Button */}
                         <button
                           type="button"
                           onClick={() => {
@@ -523,6 +685,235 @@ function StudioDetailsContent() {
                 </div>
               </div>
             </section>
+
+            {/* Reviews Section */}
+            <section className="mt-10" id="reviews">
+              <div className="mb-6">
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={23} className="text-primary" />
+
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Reviews & Ratings
+                  </h2>
+                </div>
+
+                <p className="mt-2 text-sm text-muted">
+                  See what people think about this studio.
+                </p>
+              </div>
+
+              {/* Rating Summary */}
+              <div className="mb-7 flex flex-col gap-5 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:p-7">
+                <div className="text-center sm:min-w-40">
+                  <p className="text-5xl font-extrabold text-foreground">
+                    {reviews.length > 0 ? averageRating.toFixed(1) : "0.0"}
+                  </p>
+
+                  <div className="mt-2 flex justify-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={17}
+                        className={
+                          star <= Math.round(averageRating)
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-muted"
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  <p className="mt-2 text-sm text-muted">
+                    {reviews.length}{" "}
+                    {reviews.length === 1 ? "Review" : "Reviews"}
+                  </p>
+                </div>
+
+                <div className="hidden h-20 border-l border-border sm:block" />
+
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    Guest Feedback
+                  </p>
+
+                  <p className="mt-2 text-sm leading-7 text-muted">
+                    {reviews.length > 0
+                      ? "Ratings and feedback from people who reviewed this studio."
+                      : "No ratings yet. Be the first to share your experience!"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Review Form */}
+              <div className="mb-8 rounded-2xl border border-border bg-card p-5 sm:p-7">
+                <h3 className="text-lg font-bold text-foreground">
+                  Write a Review
+                </h3>
+
+                <p className="mt-2 text-sm text-muted">
+                  Share your experience with this studio.
+                </p>
+
+                <form onSubmit={handleReviewSubmit} className="mt-5 space-y-5">
+                  {/* Star Rating Selection */}
+                  <div>
+                    <label className="mb-3 block text-sm font-semibold text-foreground">
+                      Your Rating
+                    </label>
+
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewRating(star)}
+                          aria-label={`Rate ${star} out of 5 stars`}
+                          aria-pressed={reviewRating === star}
+                          className="rounded-md p-1 transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <Star
+                            size={29}
+                            className={
+                              star <= reviewRating
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-muted"
+                            }
+                          />
+                        </button>
+                      ))}
+
+                      <span className="ml-2 text-sm text-muted">
+                        {reviewRating > 0
+                          ? `${reviewRating} out of 5`
+                          : "Select a rating"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Review Comment */}
+                  <div>
+                    <label
+                      htmlFor="reviewComment"
+                      className="mb-2 block text-sm font-semibold text-foreground"
+                    >
+                      Your Review
+                    </label>
+
+                    <textarea
+                      id="reviewComment"
+                      rows={4}
+                      maxLength={1000}
+                      value={reviewComment}
+                      onChange={(event) => setReviewComment(event.target.value)}
+                      placeholder="Tell others about your experience..."
+                      required
+                      className="w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-primary"
+                    />
+
+                    <p className="mt-2 text-right text-xs text-muted">
+                      {reviewComment.length}/1000 characters
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      reviewLoading ||
+                      reviewRating === 0 ||
+                      !reviewComment.trim()
+                    }
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    {reviewLoading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Review"
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              {/* Reviews List */}
+              <div>
+                <h3 className="mb-5 text-lg font-bold text-foreground">
+                  Customer Reviews
+                </h3>
+
+                {reviewsLoading ? (
+                  <div className="flex items-center justify-center gap-3 rounded-2xl border border-border p-8">
+                    <Loader2 size={22} className="animate-spin text-primary" />
+
+                    <p className="text-sm text-muted">Loading reviews...</p>
+                  </div>
+                ) : reviews.length > 0 ? (
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <article
+                        key={review._id}
+                        className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+                      >
+                        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+                              {review.userName?.charAt(0).toUpperCase() || "U"}
+                            </div>
+
+                            <div className="min-w-0">
+                              <h4 className="truncate text-sm font-bold text-foreground">
+                                {review.userName}
+                              </h4>
+
+                              <p className="mt-1 text-xs text-muted">
+                                {formatReviewDate(review.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={15}
+                                className={
+                                  star <= review.rating
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-muted"
+                                }
+                              />
+                            ))}
+
+                            <span className="ml-1 text-xs font-semibold text-foreground">
+                              {review.rating}.0
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted">
+                          {review.comment}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <MessageSquare size={25} />
+                    </div>
+
+                    <h4 className="mt-4 text-base font-bold text-foreground">
+                      No Reviews Yet
+                    </h4>
+
+                    <p className="mt-2 text-sm text-muted">
+                      Be the first person to review this studio.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
 
           {/* Right Section - Booking Card */}
@@ -592,6 +983,7 @@ function StudioDetailsContent() {
           </aside>
         </div>
       </div>
+
       {/* Booking Modal */}
       {isBookingOpen && (
         <div
