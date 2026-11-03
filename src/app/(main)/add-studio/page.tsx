@@ -22,6 +22,10 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:5000";
+
 const categories = [
   { value: "photography", label: "Photography Studio" },
   { value: "film-video", label: "Film & Video" },
@@ -172,7 +176,7 @@ export default function AddStudioPage() {
         const formData = new FormData();
         formData.append("image", imageFile);
 
-        const uploadResponse = await fetch("http://localhost:5000/api/upload", {
+        const uploadResponse = await fetch(`${API_URL}/api/upload`, {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -207,7 +211,7 @@ export default function AddStudioPage() {
         images: imageUrls,
       };
 
-      const studioResponse = await fetch("http://localhost:5000/api/studios", {
+      const studioResponse = await fetch(`${API_URL}/api/studios`, {
         method: "POST",
         credentials: "include",
         headers: {
