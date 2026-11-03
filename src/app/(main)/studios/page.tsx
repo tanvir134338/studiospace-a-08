@@ -30,6 +30,8 @@ interface Studio {
   category: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 const categories = [
   { value: "all", label: "All Categories" },
   { value: "photography", label: "Photography" },
@@ -79,7 +81,11 @@ function normalizeCategory(category: string | undefined) {
 
 // Fetch studios from API
 async function getStudios(): Promise<Studio[]> {
-  const response = await fetch("http://localhost:5000/api/studios", {
+  if (!API_URL) {
+    throw new Error("API URL is not configured.");
+  }
+
+  const response = await fetch(`${API_URL}/api/studios`, {
     method: "GET",
     cache: "no-store",
   });
@@ -247,11 +253,13 @@ function ExploreStudiosContent() {
             <div className="relative">
               <Search
                 size={19}
+                aria-hidden="true"
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-muted"
               />
 
               <input
                 type="search"
+                aria-label="Search studios by name or location"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by studio name or location..."
@@ -263,10 +271,12 @@ function ExploreStudiosContent() {
             <div className="relative">
               <SlidersHorizontal
                 size={17}
+                aria-hidden="true"
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-muted"
               />
 
               <select
+                aria-label="Filter studios by category"
                 value={selectedCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full appearance-none rounded-xl border border-border bg-background py-3.5 pl-11 pr-4 text-sm text-foreground outline-none transition focus:border-primary"
@@ -312,7 +322,7 @@ function ExploreStudiosContent() {
                 onClick={resetFilters}
                 className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-primary transition hover:text-accent"
               >
-                <X size={16} />
+                <X size={16} aria-hidden="true" />
                 Clear Filters
               </button>
             )}
@@ -321,7 +331,11 @@ function ExploreStudiosContent() {
 
         {/* Loading State */}
         {loading && (
-          <div className="flex min-h-[40vh] flex-col items-center justify-center">
+          <div
+            className="flex min-h-[40vh] flex-col items-center justify-center"
+            role="status"
+            aria-live="polite"
+          >
             <Loader2 size={35} className="animate-spin text-primary" />
 
             <p className="mt-4 text-sm text-muted">
@@ -332,7 +346,10 @@ function ExploreStudiosContent() {
 
         {/* Error State */}
         {!loading && error && (
-          <div className="flex min-h-[35vh] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 px-5 text-center">
+          <div
+            className="flex min-h-[35vh] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 px-5 text-center"
+            role="alert"
+          >
             <AlertCircle size={42} className="mb-4 text-red-500" />
 
             <h2 className="text-xl font-bold text-foreground">
@@ -348,7 +365,7 @@ function ExploreStudiosContent() {
               onClick={handleRetry}
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent"
             >
-              <RefreshCw size={17} />
+              <RefreshCw size={17} aria-hidden="true" />
               Try Again
             </button>
           </div>
@@ -411,6 +428,7 @@ function ExploreStudiosContent() {
                       src={studio.image}
                       alt={studio.name}
                       fill
+                      unoptimized
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -436,13 +454,21 @@ function ExploreStudiosContent() {
                   </p>
 
                   <div className="mt-5 flex items-center gap-2 text-sm text-muted">
-                    <MapPin size={17} className="shrink-0 text-primary" />
+                    <MapPin
+                      size={17}
+                      aria-hidden="true"
+                      className="shrink-0 text-primary"
+                    />
 
                     <span className="line-clamp-1">{studio.location}</span>
                   </div>
 
                   <div className="mt-3 flex items-center gap-2 text-sm text-muted">
-                    <Users size={17} className="text-primary" />
+                    <Users
+                      size={17}
+                      aria-hidden="true"
+                      className="text-primary"
+                    />
                     Capacity: {studio.capacity} people
                   </div>
 
@@ -464,7 +490,7 @@ function ExploreStudiosContent() {
                       className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-bold text-primary-foreground transition hover:bg-accent sm:text-sm"
                     >
                       View Details
-                      <ArrowUpRight size={16} />
+                      <ArrowUpRight size={16} aria-hidden="true" />
                     </Link>
                   </div>
                 </div>

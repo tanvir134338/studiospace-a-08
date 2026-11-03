@@ -27,7 +27,16 @@ import {
 
 import { toast } from "sonner";
 
-// Studio data type
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function getApiUrl(path: string) {
+  if (!API_URL) {
+    throw new Error("API URL is not configured. Check your .env.local file.");
+  }
+
+  return `${API_URL.replace(/\/$/, "")}${path}`;
+}
+
 interface Studio {
   _id: string;
   name: string;
@@ -45,7 +54,6 @@ interface Studio {
   updatedAt?: string;
 }
 
-// Review data type
 interface Review {
   _id: string;
   studioId: string;
@@ -69,7 +77,6 @@ interface ReviewsApiResponse {
   reviews: Review[];
 }
 
-// Category labels
 const categoryLabels: Record<string, string> = {
   photography: "Photography Studio",
   "film-video": "Film & Video",
@@ -79,7 +86,6 @@ const categoryLabels: Record<string, string> = {
   events: "Events & Workshops",
 };
 
-// Get today's date in local YYYY-MM-DD format
 function getTodayDate() {
   const today = new Date();
   const year = today.getFullYear();
@@ -89,7 +95,6 @@ function getTodayDate() {
   return `${year}-${month}-${day}`;
 }
 
-// Format review date
 function formatReviewDate(date: string) {
   return new Date(date).toLocaleDateString("en-US", {
     year: "numeric",
@@ -98,7 +103,6 @@ function formatReviewDate(date: string) {
   });
 }
 
-// Main details component
 function StudioDetailsContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -111,30 +115,54 @@ function StudioDetailsContent() {
   const [imageError, setImageError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
-  // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Booking states
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingDate, setBookingDate] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("11:00");
   const [bookingLoading, setBookingLoading] = useState(false);
 
-  // Review states
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState("");
+  const [reviewsRetryKey, setReviewsRetryKey] = useState(0);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
 
-  // Gallery images with old studio fallback
-  const galleryImages =
+  // Close booking modal with Escape and prevent background scrolling
+  useEffect(() => {
+    if (!isBookingOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !bookingLoading) {
+        setIsBookingOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isBookingOpen, bookingLoading]);
+
+  // Gallery images
+  const galleryImages = (
     studio?.images && studio.images.length > 0
       ? studio.images
       : studio?.image
         ? [studio.image]
-        : [];
+        : []
+  ).filter(
+    (image): image is string =>
+      typeof image === "string" && image.trim().length > 0,
+  );
 
   // Calculate average rating
   const averageRating =
@@ -154,13 +182,10 @@ function StudioDetailsContent() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(
-          `http://localhost:5000/api/studios/${studioId}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          },
-        );
+        const response = await fetch(getApiUrl(`/api/studios/${studioId}`), {
+          method: "GET",
+          cache: "no-store",
+        });
 
         const result: ApiResponse = await response.json();
 
@@ -203,13 +228,10 @@ function StudioDetailsContent() {
       try {
         setReviewsLoading(true);
 
-        const response = await fetch(
-          `http://localhost:5000/api/reviews/${studioId}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          },
-        );
+        const response = await fetch(getApiUrl(`/api/reviews/${studioId}`), {
+          method: "GET",
+          cache: "no-store",
+        });
 
         const result: ReviewsApiResponse = await response.json();
 
@@ -219,11 +241,15 @@ function StudioDetailsContent() {
 
         if (!cancelled) {
           setReviews(result.reviews || []);
+          setReviewsError("");
         }
       } catch (err) {
         if (!cancelled) {
           console.error("Failed to fetch reviews:", err);
-          setReviews([]);
+
+          setReviewsError(
+            err instanceof Error ? err.message : "Unable to load reviews.",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -237,9 +263,9 @@ function StudioDetailsContent() {
     return () => {
       cancelled = true;
     };
-  }, [studioId]);
+  }, [studioId, reviewsRetryKey]);
 
-  // Retry loading
+  // Retry loading studio
   const handleRetry = () => {
     setRetryKey((previous) => previous + 1);
   };
@@ -273,7 +299,7 @@ function StudioDetailsContent() {
 
   const securityDeposit = studio ? studio.securityDeposit : 0;
 
-  const totalAmount = rentalPrice + securityDeposit;
+  const totalAmount = rentalPrice;
 
   // Submit booking
   const handleBookingSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -299,7 +325,7 @@ function StudioDetailsContent() {
     try {
       setBookingLoading(true);
 
-      const response = await fetch("http://localhost:5000/api/bookings", {
+      const response = await fetch(getApiUrl("/api/bookings"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -310,16 +336,20 @@ function StudioDetailsContent() {
           date: bookingDate,
           startTime,
           endTime,
-          totalPrice: rentalPrice,
         }),
       });
 
       const result = await response.json();
 
+      // Redirect to login and return to this studio after login
       if (response.status === 401) {
         toast.error("Please login before booking a studio.");
         setIsBookingOpen(false);
-        router.push("/login");
+
+        const returnUrl = `/studios/${studio._id}`;
+
+        router.push(`/login?callbackURL=${encodeURIComponent(returnUrl)}`);
+
         return;
       }
 
@@ -328,7 +358,6 @@ function StudioDetailsContent() {
       }
 
       toast.success("Booking request submitted successfully!");
-
       setIsBookingOpen(false);
     } catch (err) {
       toast.error(
@@ -360,7 +389,7 @@ function StudioDetailsContent() {
     try {
       setReviewLoading(true);
 
-      const response = await fetch("http://localhost:5000/api/reviews", {
+      const response = await fetch(getApiUrl("/api/reviews"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -375,9 +404,14 @@ function StudioDetailsContent() {
 
       const result = await response.json();
 
+      // Redirect to login and return to the reviews section after login
       if (response.status === 401) {
         toast.error("Please login before submitting a review.");
-        router.push("/login");
+
+        const returnUrl = `/studios/${studio._id}#reviews`;
+
+        router.push(`/login?callbackURL=${encodeURIComponent(returnUrl)}`);
+
         return;
       }
 
@@ -390,19 +424,40 @@ function StudioDetailsContent() {
       setReviewRating(0);
       setReviewComment("");
 
-      // Refresh reviews after successful submission
-      const reviewsResponse = await fetch(
-        `http://localhost:5000/api/reviews/${studio._id}`,
-        {
-          method: "GET",
-          cache: "no-store",
-        },
-      );
+      // Refresh reviews separately
+      setReviewsLoading(true);
+      setReviewsError("");
 
-      const reviewsResult: ReviewsApiResponse = await reviewsResponse.json();
+      try {
+        const reviewsResponse = await fetch(
+          getApiUrl(`/api/reviews/${studio._id}`),
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
 
-      if (reviewsResponse.ok && reviewsResult.success) {
+        const reviewsResult: ReviewsApiResponse = await reviewsResponse.json();
+
+        if (!reviewsResponse.ok || !reviewsResult.success) {
+          throw new Error(
+            reviewsResult.message || "Unable to refresh reviews.",
+          );
+        }
+
         setReviews(reviewsResult.reviews || []);
+      } catch (refreshError) {
+        console.error("Review submitted, but refresh failed:", refreshError);
+
+        setReviewsError(
+          "Your review was submitted, but the review list could not be refreshed. Please try again.",
+        );
+
+        toast.warning(
+          "Your review was submitted, but the review list could not be refreshed.",
+        );
+      } finally {
+        setReviewsLoading(false);
       }
     } catch (err) {
       toast.error(
@@ -444,6 +499,7 @@ function StudioDetailsContent() {
 
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <button
+            type="button"
             onClick={handleRetry}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
           >
@@ -490,6 +546,7 @@ function StudioDetailsContent() {
                       alt={`${studio.name} - Image ${activeImageIndex + 1}`}
                       fill
                       priority
+                      unoptimized
                       sizes="(max-width: 1024px) 100vw, 65vw"
                       className="object-cover"
                       onError={() => setImageError(true)}
@@ -572,6 +629,7 @@ function StudioDetailsContent() {
                         src={image}
                         alt={`${studio.name} thumbnail ${index + 1}`}
                         fill
+                        unoptimized
                         sizes="(max-width: 640px) 25vw, 15vw"
                         className="object-cover"
                       />
@@ -843,10 +901,32 @@ function StudioDetailsContent() {
                 </h3>
 
                 {reviewsLoading ? (
-                  <div className="flex items-center justify-center gap-3 rounded-2xl border border-border p-8">
+                  <div
+                    className="flex items-center justify-center gap-3 rounded-2xl border border-border p-8"
+                    role="status"
+                    aria-live="polite"
+                  >
                     <Loader2 size={22} className="animate-spin text-primary" />
 
                     <p className="text-sm text-muted">Loading reviews...</p>
+                  </div>
+                ) : reviewsError ? (
+                  <div
+                    className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-center"
+                    role="alert"
+                  >
+                    <p className="text-sm text-muted">{reviewsError}</p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReviewsRetryKey((previous) => previous + 1)
+                      }
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                    >
+                      <RefreshCw size={16} />
+                      Try Again
+                    </button>
                   </div>
                 ) : reviews.length > 0 ? (
                   <div className="space-y-4">
@@ -964,6 +1044,7 @@ function StudioDetailsContent() {
 
               {/* Booking Button */}
               <button
+                type="button"
                 onClick={handleBooking}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-4 text-sm font-bold text-primary-foreground transition hover:opacity-90"
               >
@@ -1137,7 +1218,7 @@ function StudioDetailsContent() {
                 <div className="border-t border-border pt-3">
                   <div className="flex justify-between gap-3">
                     <span className="font-bold text-foreground">
-                      Total Amount
+                      Rental Total
                     </span>
 
                     <span className="text-xl font-extrabold text-primary">
@@ -1145,6 +1226,12 @@ function StudioDetailsContent() {
                     </span>
                   </div>
                 </div>
+
+                <p className="text-xs leading-5 text-muted">
+                  The security deposit is shown separately. The booking API
+                  stores the rental price calculated from the selected duration
+                  and hourly rate.
+                </p>
               </div>
 
               {/* Submit Button */}
