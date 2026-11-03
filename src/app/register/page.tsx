@@ -68,7 +68,7 @@ export default function RegisterPage() {
         name,
         email,
         password,
-        callbackURL: "http://localhost:3000/login",
+        callbackURL: `${window.location.origin}/login`,
       });
 
       if (result.error) {
@@ -94,7 +94,8 @@ export default function RegisterPage() {
       const result = await authClient.signIn.social({
         provider: "google",
         requestSignUp: true,
-        callbackURL: "http://localhost:3000/",
+        callbackURL: `${window.location.origin}/`,
+        errorCallbackURL: `${window.location.origin}/register`,
       });
 
       if (result.error) {
