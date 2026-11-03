@@ -146,6 +146,25 @@ export default function AddStudioPage() {
     );
   };
 
+  // Reset all studio form fields after successful creation
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setLocation("");
+    setCategory("");
+    setPricePerHour("");
+    setSecurityDeposit("");
+    setCapacity("");
+    setAmenities([]);
+
+    // Release temporary image preview URLs
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current = [];
+
+    setImageFiles([]);
+    setImagePreviews([]);
+  };
+
   // Submit studio
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -227,6 +246,9 @@ export default function AddStudioPage() {
       }
 
       toast.success("Studio created successfully!");
+
+      // Reset the form after successful creation
+      resetForm();
 
       router.push("/my-listings");
       router.refresh();
