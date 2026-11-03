@@ -1,36 +1,134 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudioSpace — Frontend
+
+A modern, responsive studio rental platform built with Next.js, TypeScript, and Tailwind CSS. StudioSpace allows users to discover studios, explore details, manage listings, and book spaces through an intuitive interface.
+
+**Live Website:** https://studiospace-a-08.vercel.app
+
+**Backend API:** https://studiospace-server-h7p3.onrender.com
+
+## Overview
+
+StudioSpace is a full-stack studio rental platform designed to connect people looking for creative spaces with studio owners. Users can browse available studios, manage their own listings, make bookings, and share reviews.
+
+## Features
+
+- **Authentication:** Email/password and Google authentication using Better Auth.
+- **Explore Studios:** Browse studios with search, category filtering, and price sorting.
+- **Studio Details:** View studio information, images, amenities, pricing, and reviews.
+- **Studio Management:** Create, edit, and delete personal studio listings.
+- **Image Upload:** Upload studio images through the backend image upload API.
+- **Booking System:** Book studios and manage personal reservations.
+- **Double Booking Prevention:** Prevent conflicting bookings for the same time slot.
+- **Reviews:** Submit and view studio reviews.
+- **User Dashboard:** View personal statistics, studio listings, and recent bookings.
+- **My Bookings:** View and manage booking history.
+- **Responsive Design:** Optimized for mobile, tablet, and desktop.
+- **Theme Switching:** Light and dark mode support.
+
+## Technology Stack
+
+| Category       | Technologies |
+| -------------- | ------------ |
+| Framework      | Next.js 16   |
+| Language       | TypeScript   |
+| Styling        | Tailwind CSS |
+| Authentication | Better Auth  |
+| Icons          | Lucide React |
+| Notifications  | Sonner       |
+| Deployment     | Vercel       |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20 or later
+- npm
+- Git
+
+### Installation
+
+Clone the repository:
+
+```bash
+git clone YOUR_FRONTEND_REPOSITORY_URL
+```
+
+Navigate to the project directory:
+
+```bash
+cd studiospace-client
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+### Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000
+```
+
+For production, configure the deployed backend URL in your Vercel environment variables.
+
+### Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+Start the production server:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+src/
+├── app/
+│   ├── (auth)/
+│   ├── (main)/
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+├── lib/
+└── ...
+```
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The frontend is deployed on Vercel.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Live URL:** https://studiospace-a-08.vercel.app
+
+## Backend Repository
+
+The backend is maintained separately:
+
+https://github.com/tanvir134338/studiospace-server
+
+## Developer
+
+**Tanvir**
+
+Full-Stack Web Developer
+
+GitHub: https://github.com/tanvir134338
+
+---
+
+Built with Next.js, TypeScript, and a passion for creating useful web experiences.
