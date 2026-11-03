@@ -36,7 +36,7 @@ export default function LoginPage() {
       const result = await authClient.signIn.email({
         email,
         password,
-        callbackURL: "http://localhost:3000/",
+        callbackURL: `${window.location.origin}/`,
       });
 
       if (result.error) {
@@ -61,9 +61,8 @@ export default function LoginPage() {
     try {
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "http://localhost:3000/",
-        errorCallbackURL:
-          "http://localhost:3000/register?reason=google-signup-required",
+        callbackURL: `${window.location.origin}/`,
+        errorCallbackURL: `${window.location.origin}/register?reason=google-signup-required`,
       });
 
       if (result.error) {
