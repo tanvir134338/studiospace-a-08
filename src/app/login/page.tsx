@@ -45,10 +45,34 @@ export default function LoginPage() {
         return;
       }
 
+      // Generate JWT after successful login
+      const apiURL = process.env.NEXT_PUBLIC_API_URL;
+
+      if (!apiURL) {
+        throw new Error("API URL is not configured.");
+      }
+
+      const jwtResponse = await fetch(`${apiURL}/api/session/jwt`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const jwtData = await jwtResponse.json();
+
+      if (!jwtResponse.ok || !jwtData.success) {
+        throw new Error(jwtData.message || "Failed to generate JWT.");
+      }
+
+      // Redirect after successful JWT generation
       router.replace("/");
       router.refresh();
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
       setIsLoading(false);
     }
   };
