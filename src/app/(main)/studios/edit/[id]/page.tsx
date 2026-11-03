@@ -22,6 +22,10 @@ import {
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
+
 // Studio categories
 const categories = [
   { value: "photography", label: "Photography Studio" },
@@ -104,14 +108,11 @@ function EditStudioForm() {
 
     const loadStudio = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:5000/api/studios/${studioId}`,
-          {
-            method: "GET",
-            credentials: "include",
-            cache: "no-store",
-          },
-        );
+        const response = await fetch(`${API_URL}/api/studios/${studioId}`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
 
         const result = await response.json();
 
@@ -272,7 +273,7 @@ function EditStudioForm() {
     const formData = new FormData();
     formData.append("image", file);
 
-    const uploadResponse = await fetch("http://localhost:5000/api/upload", {
+    const uploadResponse = await fetch(`${API_URL}/api/upload`, {
       method: "POST",
       credentials: "include",
       body: formData,
@@ -371,17 +372,14 @@ function EditStudioForm() {
       };
 
       // Update studio in MongoDB
-      const response = await fetch(
-        `http://localhost:5000/api/studios/${studioId}`,
-        {
-          method: "PATCH",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(studioData),
+      const response = await fetch(`${API_URL}/api/studios/${studioId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(studioData),
+      });
 
       const result = await response.json();
 
