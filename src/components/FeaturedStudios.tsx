@@ -34,6 +34,16 @@ interface StudiosResponse {
   studios?: Studio[];
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function formatCategory(category: string | undefined) {
+  if (!category) return "Creative Space";
+
+  return category
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function FeaturedStudios() {
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +58,11 @@ export default function FeaturedStudios() {
         setLoading(true);
         setError("");
 
-        const response = await fetch("http://localhost:5000/api/studios", {
+        if (!API_URL) {
+          throw new Error("API URL is not configured.");
+        }
+
+        const response = await fetch(`${API_URL}/api/studios`, {
           method: "GET",
           cache: "no-store",
         });
@@ -61,22 +75,27 @@ export default function FeaturedStudios() {
 
         const allStudios = result.studios || [];
 
-        // Show the six newest studios
+        // Sort studios by newest first.
         const sortedStudios = [...allStudios].sort((a, b) => {
-          if (!a.createdAt || !b.createdAt) return 0;
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
 
-          return (
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+          return dateB - dateA;
         });
 
         if (!cancelled) {
+          // Display a maximum of six studios.
           setStudios(sortedStudios.slice(0, 6));
         }
       } catch (err) {
         if (!cancelled) {
+          console.error("Featured studios error:", err);
+
           setError(
-            err instanceof Error ? err.message : "Something went wrong.",
+            err instanceof Error
+              ? err.message
+              : "Something went wrong while loading studios.",
           );
         }
       } finally {
@@ -198,6 +217,7 @@ export default function FeaturedStudios() {
                       src={studio.image}
                       alt={studio.name}
                       fill
+                      unoptimized
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -208,7 +228,7 @@ export default function FeaturedStudios() {
                   )}
 
                   <span className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs font-bold capitalize text-white backdrop-blur">
-                    {studio.category.replace("-", " ")}
+                    {formatCategory(studio.category)}
                   </span>
 
                   <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
@@ -233,12 +253,12 @@ export default function FeaturedStudios() {
                   </div>
 
                   <div className="mt-3 flex items-center gap-2 text-sm text-muted">
-                    <Users size={17} className="text-primary" />
+                    <Users size={17} className="shrink-0 text-primary" />
                     Capacity: {studio.capacity} people
                   </div>
 
                   {/* Price and Button */}
-                  <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-5 mt-6">
+                  <div className="mt-auto mt-6 flex items-center justify-between gap-3 border-t border-border pt-5">
                     <div>
                       <p className="text-xs text-muted">Starting from</p>
 

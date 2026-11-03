@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Aperture, ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 
-import { FaFacebookF, FaInstagram, FaYoutube } from "react-icons/fa";
+import { FaFacebookF, FaLinkedin, FaTwitter } from "react-icons/fa";
 
 const quickLinks = [
   { name: "Home", href: "/" },
@@ -59,23 +59,23 @@ export default function Footer() {
               </a>
 
               <a
-                href="https://www.instagram.com/"
+                href="https://www.twitter.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
               >
-                <FaInstagram size={18} />
+                <FaTwitter size={18} />
               </a>
 
               <a
-                href="https://www.youtube.com/"
+                href="https://www.linkedin.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="YouTube"
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground"
               >
-                <FaYoutube size={19} />
+                <FaLinkedin size={19} />
               </a>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function Footer() {
             <div className="space-y-4">
               <div className="flex items-start gap-3 text-sm text-muted">
                 <Mail size={18} className="mt-0.5 shrink-0 text-primary" />
-                <span>Contact information coming soon</span>
+                <span>sample@example.com</span>
               </div>
 
               <div className="flex items-start gap-3 text-sm text-muted">
@@ -148,7 +148,7 @@ export default function Footer() {
 
               <div className="flex items-start gap-3 text-sm text-muted">
                 <Phone size={18} className="mt-0.5 shrink-0 text-primary" />
-                <span>Support information coming soon</span>
+                <span>+880 1234 567890</span>
               </div>
             </div>
           </div>

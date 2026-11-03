@@ -42,6 +42,7 @@ export default function HowBookingWorks() {
   return (
     <section
       id="how-it-works"
+      aria-labelledby="how-it-works-heading"
       className="scroll-mt-28 border-y border-border bg-card/40 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
     >
       <div className="mx-auto max-w-[1440px]">
@@ -51,7 +52,10 @@ export default function HowBookingWorks() {
             Simple Booking Process
           </span>
 
-          <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2
+            id="how-it-works-heading"
+            className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl"
+          >
             How Booking <span className="text-primary">Works.</span>
           </h2>
 
@@ -67,17 +71,23 @@ export default function HowBookingWorks() {
             const Icon = step.icon;
 
             return (
-              <div
+              <article
                 key={step.number}
                 className="group relative rounded-2xl border border-border bg-background p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 sm:p-7"
               >
                 {/* Step Number */}
-                <span className="absolute right-6 top-6 text-sm font-bold tracking-widest text-muted/50">
+                <span
+                  aria-label={`Step ${step.number}`}
+                  className="absolute right-6 top-6 text-sm font-bold tracking-widest text-muted/50"
+                >
                   {step.number}
                 </span>
 
                 {/* Icon */}
-                <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                <div
+                  aria-hidden="true"
+                  className="mb-7 flex h-14 w-14 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground"
+                >
                   <Icon size={25} strokeWidth={1.8} />
                 </div>
 
@@ -91,8 +101,11 @@ export default function HowBookingWorks() {
                 </p>
 
                 {/* Bottom Indicator */}
-                <div className="mt-6 h-1 w-10 rounded-full bg-primary/30 transition-all duration-300 group-hover:w-16 group-hover:bg-primary" />
-              </div>
+                <div
+                  aria-hidden="true"
+                  className="mt-6 h-1 w-10 rounded-full bg-primary/30 transition-all duration-300 group-hover:w-16 group-hover:bg-primary"
+                />
+              </article>
             );
           })}
         </div>
@@ -106,6 +119,7 @@ export default function HowBookingWorks() {
             Find Your Studio
             <ArrowRight
               size={17}
+              aria-hidden="true"
               className="transition-transform duration-300 group-hover:translate-x-1"
             />
           </Link>
