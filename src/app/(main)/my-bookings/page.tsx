@@ -40,6 +40,7 @@ interface Studio {
   location: string;
   image: string;
   pricePerHour: number;
+  securityDeposit: number;
 }
 
 interface BookingWithStudio extends Booking {
@@ -61,7 +62,7 @@ const statusStyles: Record<BookingStatus, string> = {
   Pending: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   Confirmed: "bg-green-500/10 text-green-600 border-green-500/20",
   Completed: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  Cancelled: "bg-red-500/10 text-red-600 border-red-500/20",
+  Cancelled: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
 function formatDate(date: string) {
@@ -80,6 +81,20 @@ function formatTime(time: string) {
     minute: "2-digit",
     hour12: true,
   });
+}
+
+function calculateDuration(startTime: string, endTime: string) {
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+
+  const start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+
+  return (end - start) / 60;
+}
+
+function formatPrice(amount: number) {
+  return `৳${amount.toLocaleString("en-BD")}`;
 }
 
 export default function MyBookingsPage() {
@@ -334,128 +349,182 @@ export default function MyBookingsPage() {
         ) : (
           /* Booking List */
           <div className="space-y-5">
-            {bookings.map((booking) => (
-              <div
-                key={booking._id}
-                className="overflow-hidden rounded-2xl border border-border bg-card"
-              >
-                <div className="grid md:grid-cols-[220px_1fr]">
-                  {/* Studio Image */}
-                  <div className="relative min-h-[190px] bg-secondary md:min-h-full">
-                    {booking.studio?.image ? (
-                      <Image
-                        src={booking.studio.image}
-                        alt={booking.studio.name || "Studio"}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 220px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full min-h-[190px] items-center justify-center text-muted">
-                        <Building2 size={45} />
-                      </div>
-                    )}
-                  </div>
+            {bookings.map((booking) => {
+              const duration = calculateDuration(
+                booking.startTime,
+                booking.endTime,
+              );
 
-                  {/* Booking Details */}
-                  <div className="min-w-0 p-5 sm:p-6">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-xl font-bold text-foreground">
-                          {booking.studio?.name || "Studio Unavailable"}
-                        </h2>
+              const rentalPrice = booking.totalPrice;
+              const securityDeposit = booking.studio?.securityDeposit;
+              const totalAmount =
+                securityDeposit !== undefined
+                  ? rentalPrice + securityDeposit
+                  : undefined;
 
-                        <p className="mt-2 flex items-center gap-2 text-sm text-muted">
-                          <MapPin size={15} className="shrink-0 text-primary" />
-                          {booking.studio?.location || "Location unavailable"}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`inline-flex shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                          statusStyles[booking.status] || statusStyles.Pending
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
+              return (
+                <div
+                  key={booking._id}
+                  className="overflow-hidden rounded-2xl border border-border bg-card"
+                >
+                  <div className="grid md:grid-cols-[220px_1fr]">
+                    {/* Studio Image */}
+                    <div className="relative min-h-[190px] bg-secondary md:min-h-full">
+                      {booking.studio?.image ? (
+                        <Image
+                          src={booking.studio.image}
+                          alt={booking.studio.name || "Studio"}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 220px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full min-h-[190px] items-center justify-center text-muted">
+                          <Building2 size={45} />
+                        </div>
+                      )}
                     </div>
 
-                    {/* Booking Information */}
-                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
-                          <CalendarDays size={19} />
-                        </div>
+                    {/* Booking Details */}
+                    <div className="min-w-0 p-5 sm:p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="text-xl font-bold text-foreground">
+                            {booking.studio?.name || "Studio Unavailable"}
+                          </h2>
 
-                        <div>
-                          <p className="text-xs text-muted">Booking Date</p>
-
-                          <p className="mt-1 text-sm font-semibold text-foreground">
-                            {formatDate(booking.date)}
+                          <p className="mt-2 flex items-center gap-2 text-sm text-muted">
+                            <MapPin
+                              size={15}
+                              className="shrink-0 text-primary"
+                            />
+                            {booking.studio?.location || "Location unavailable"}
                           </p>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
-                          <Clock size={19} />
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-muted">Booking Time</p>
-
-                          <p className="mt-1 text-sm font-semibold text-foreground">
-                            {formatTime(booking.startTime)} -{" "}
-                            {formatTime(booking.endTime)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Price and Actions */}
-                    <div className="mt-6 flex flex-col justify-between gap-4 border-t border-border pt-5 sm:flex-row sm:items-center">
-                      <div>
-                        <p className="text-xs text-muted">Rental Price</p>
-
-                        <p className="mt-1 text-2xl font-extrabold text-primary">
-                          ${booking.totalPrice.toFixed(2)}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap gap-3">
-                        <Link
-                          href={`/studios/${booking.studioId}`}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-secondary"
+                        <span
+                          className={`inline-flex shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                            statusStyles[booking.status] || statusStyles.Pending
+                          }`}
                         >
-                          View Studio
-                          <ArrowRight size={15} />
-                        </Link>
+                          {booking.status}
+                        </span>
+                      </div>
 
-                        {booking.status === "Pending" && (
-                          <button
-                            onClick={() => handleCancelBooking(booking._id)}
-                            disabled={cancellingId === booking._id}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      {/* Booking Information */}
+                      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                            <CalendarDays size={19} />
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted">Booking Date</p>
+
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              {formatDate(booking.date)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                            <Clock size={19} />
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted">Booking Time</p>
+
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              {formatTime(booking.startTime)} -{" "}
+                              {formatTime(booking.endTime)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Price and Actions */}
+                      <div className="mt-6 flex flex-col justify-between gap-5 border-t border-border pt-5 sm:flex-row sm:items-end">
+                        <div className="w-full sm:max-w-xs">
+                          <p className="mb-3 text-sm font-bold text-foreground">
+                            Booking Price Details
+                          </p>
+
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted">Duration</span>
+                              <span className="font-medium text-foreground">
+                                {duration} {duration === 1 ? "Hour" : "Hours"}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted">Rental Price</span>
+                              <span className="font-medium text-foreground">
+                                {formatPrice(rentalPrice)}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted">
+                                Security Deposit
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {securityDeposit !== undefined
+                                  ? formatPrice(securityDeposit)
+                                  : "Unavailable"}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between gap-4 border-t border-border pt-3">
+                              <span className="font-bold text-foreground">
+                                Total Amount
+                              </span>
+
+                              <span className="text-lg font-extrabold text-primary">
+                                {totalAmount !== undefined
+                                  ? formatPrice(totalAmount)
+                                  : "Unavailable"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <Link
+                            href={`/studios/${booking.studioId}`}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-secondary"
                           >
-                            {cancellingId === booking._id ? (
-                              <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Cancelling...
-                              </>
-                            ) : (
-                              <>
-                                <XCircle size={16} />
-                                Cancel Booking
-                              </>
-                            )}
-                          </button>
-                        )}
+                            View Studio
+                            <ArrowRight size={15} />
+                          </Link>
+
+                          {booking.status === "Pending" && (
+                            <button
+                              onClick={() => handleCancelBooking(booking._id)}
+                              disabled={cancellingId === booking._id}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {cancellingId === booking._id ? (
+                                <>
+                                  <Loader2 size={16} className="animate-spin" />
+                                  Cancelling...
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle size={16} />
+                                  Cancel Booking
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
